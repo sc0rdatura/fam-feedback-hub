@@ -4,15 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <base target="_top">
-  <title>Optimiser Feedback Portal - Edited from VS Code!</title>
+  <title>Optimiser Feedback Portal</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- Login Screen -->
+
+  <!-- Login Screen -->
   <div id="login-screen" class="login-container">
     <div class="login-box">
       <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
-      <h1>Welcome to the Feedback Portal</h1>
+      <h1>Welcome to the FAM CRM Issues/Requests Portal</h1>
       <p>Please select your name to continue.</p>
       <div id="people-list-container" class="people-list-container">
         <p class="placeholder-text-small">Loading names...</p>
@@ -22,24 +23,20 @@
 
   <!-- Main App Wrapper -->
   <div id="main-app-container" style="display: none;">
-    
-    
     <div class="container">
       <header class="app-header">
-  <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
-  <h1>Optimiser Feedback Portal</h1>
-  <p>Log issues, track progress, and find existing feedback.</p>
-
-  <!-- MOVED and MODIFIED User Display -->
-  <div id="user-display" class="user-display-container">
-    <span id="user-name-display"></span>
-    <a href="#" id="logout-btn" class="logout-icon" title="Switch User">
-      <!-- SVG icon will be inserted here by JavaScript -->
-    </a>
-  </div>
-</header>
-
+        <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
+        <h1>Optimiser Feedback Portal</h1>
+        <p>Log issues, track progress, and find existing feedback.</p>
       
+        <!-- User Display and Logout -->
+        <div id="user-display" class="user-display-container">
+          <span id="user-name-display"></span>
+          <a href="#" id="logout-btn" class="logout-icon" title="Switch User">
+            <!-- SVG icon will be inserted here by JavaScript -->
+          </a>
+        </div>
+      </header>
 
       <div class="controls">
         <input type="search" id="search-bar" placeholder="🔎 Search by title, description, or category...">
@@ -135,7 +132,8 @@
         </div>
       </div>
     </div>
-</div> <!-- This closes the #main-app-container -->
+
+  </div> <!-- This closes the #main-app-container -->
 
   <script type="module" src="firebase-init.js"></script>
   <script type="module" src="app.js"></script>

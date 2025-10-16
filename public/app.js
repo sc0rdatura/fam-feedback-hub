@@ -17,19 +17,11 @@ const formModal = document.getElementById('form-modal');
 const issueForm = document.getElementById('issue-form');
 const submitBtn = document.getElementById('submit-btn');
 const categorySelect = document.getElementById('category');
-const loginScreen = document.getElementById('login-screen');
-const mainAppContainer = document.getElementById('main-app-container');
-const peopleListContainer = document.getElementById('people-list-container');
 const confirmModal = document.getElementById('confirm-modal');
 const confirmTitle = document.getElementById('confirm-title');
 const confirmMessage = document.getElementById('confirm-message');
 const confirmYesBtn = document.getElementById('confirm-yes-btn');
 const confirmNoBtn = document.getElementById('confirm-no-btn');
-const userDisplayContainer = document.getElementById('user-display');
-const userNameDisplay = document.getElementById('user-name-display');
-const logoutBtn = document.getElementById('logout-btn');
-logoutBtn.innerHTML = logoutIconSVG;
-// Filter and Sort Controls
 const searchBar = document.getElementById('search-bar');
 const filterCategorySelect = document.getElementById('filter-category-select');
 const filterStatusSelect = document.getElementById('filter-status-select');
@@ -37,6 +29,14 @@ const filterPrioritySelect = document.getElementById('filter-priority-select');
 const filterSubmitterSelect = document.getElementById('filter-submitter-select');
 const resetFiltersBtn = document.getElementById('reset-filters-btn');
 const sortSelect = document.getElementById('sort-select');
+const loginScreen = document.getElementById('login-screen');
+const mainAppContainer = document.getElementById('main-app-container');
+const peopleListContainer = document.getElementById('people-list-container');
+const userDisplayContainer = document.getElementById('user-display');
+const userNameDisplay = document.getElementById('user-name-display');
+const logoutBtn = document.getElementById('logout-btn');
+const archivedSection = document.getElementById('archived-section');
+const archivedHeader = document.getElementById('archived-header');
 
 // =================================================================
 //  CONSTANTS & ICONS
@@ -49,17 +49,24 @@ const logoutIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height
 // =================================================================
 //  STATE
 // =================================================================
-let firebaseUser = null; // For the anonymous auth user from Firebase
-let loggedInPerson = null; // For the user profile from 'people' collection
-let allIssues = []; // Master list of all issues from Firestore
+let firebaseUser = null;
+let loggedInPerson = null;
+let allIssues = [];
 
 // =================================================================
 //  CORE APPLICATION LOGIC
 // =================================================================
 
 /**
+ * Logs the user out by clearing localStorage and reloading the page.
+ */
+function handleLogout() {
+  localStorage.removeItem('loggedInUser');
+  location.reload();
+}
+
+/**
  * Shows the confirmation modal for archiving an issue.
- * @param {string} issueId - The ID of the issue to archive.
  */
 function showArchiveConfirm(issueId) {
   confirmTitle.textContent = 'Confirm Archival';
@@ -70,28 +77,16 @@ function showArchiveConfirm(issueId) {
     handleStatusChange(issueId, 'Archived');
     confirmModal.style.display = 'none';
   };
-
-}
-/**
- * Logs the user out by clearing localStorage and reloading the page.
- */
-function handleLogout() {
-  localStorage.removeItem('loggedInUser');
-  location.reload(); // The simplest way to reset the app state
 }
 
 /**
  * Updates an issue's status in Firestore.
- * @param {string} issueId - The ID of the issue to update.
- * @param {string} newStatus - The new status value.
  */
 async function handleStatusChange(issueId, newStatus) {
   console.log(`Updating status for ${issueId} to ${newStatus}`);
   const docRef = doc(db, "issues", issueId);
   try {
-    await updateDoc(docRef, {
-      status: newStatus
-    });
+    await updateDoc(docRef, { status: newStatus });
     console.log("Status updated successfully!");
   } catch (error) {
     console.error("Error updating status:", error);
@@ -107,7 +102,7 @@ async function populateCategoryDropdown() {
   try {
     const querySnapshot = await getDocs(collection(db, "categories"));
     let formOptionsHtml = '<option value="" disabled selected>Select a Category</option>';
-    let filterOptionsHtml = '<option value="all">All</option>'; // Start with 'All' for the filter
+    let filterOptionsHtml = '<option value="all">All</option>';
     querySnapshot.forEach((doc) => {
       const categoryName = doc.data().name;
       formOptionsHtml += `<option value="${categoryName}">${categoryName}</option>`;
@@ -125,7 +120,7 @@ async function populateCategoryDropdown() {
  */
 async function handleFormSubmit(e) {
   e.preventDefault();
-  if (!currentUser) {
+  if (!firebaseUser || !loggedInPerson) {
     alert("You must be logged in to submit an issue.");
     return;
   }
@@ -141,7 +136,7 @@ async function handleFormSubmit(e) {
       type: formData.get('type'),
       priority: formData.get('priority'),
       description: formData.get('description'),
-      submitterId: currentUser.uid,
+      submitterId: firebaseUser.uid,
       submitterName: loggedInPerson.name,
       status: "New",
       isPinned: false,
@@ -395,7 +390,6 @@ function setupEventListeners() {
   });
 
   issueForm.addEventListener('submit', handleFormSubmit);
-  logoutBtn.addEventListener('click', handleLogout);
 
   const allFiltersAndSort = [searchBar, sortSelect, filterStatusSelect, filterPrioritySelect, filterSubmitterSelect, filterCategorySelect];
   allFiltersAndSort.forEach(el => el.addEventListener('input', applyFiltersAndSort));
@@ -404,7 +398,7 @@ function setupEventListeners() {
   searchResetBtn.addEventListener('click', () => {
     searchBar.value = '';
     applyFiltersAndSort();
-  });
+});
 
   resetFiltersBtn.addEventListener('click', () => {
     filterStatusSelect.value = 'all';
@@ -414,6 +408,12 @@ function setupEventListeners() {
     searchBar.value = '';
     applyFiltersAndSort();
   });
+
+  logoutBtn.addEventListener('click', handleLogout);
+  archivedHeader.addEventListener('click', () => {
+  const isExpanded = archivedSection.classList.toggle('expanded');
+  archivedHeader.querySelector('.archived-toggle').textContent = isExpanded ? 'Hide' : 'Show';
+});
 }
 
 /**
@@ -424,22 +424,18 @@ function startApp() {
   listenForIssues();
   setupEventListeners();
   populateCategoryDropdown();
-  // We now populate the filter dropdown from the main people list
-  populateFilterDropdowns(); 
+  populateFilterDropdowns();
 }
 
 /**
  * Handles the user selecting their name from the login screen.
- * @param {string} personName - The name of the person selected.
  */
 function handlePersonSelect(personName) {
   loggedInPerson = { name: personName };
-  // Store the selected person's info in localStorage for future visits
   localStorage.setItem('loggedInUser', JSON.stringify(loggedInPerson));
   userNameDisplay.textContent = `Logged in as: ${loggedInPerson.name}`;
   loginScreen.style.display = 'none';
   mainAppContainer.style.display = 'block';
-
   startApp();
 }
 
@@ -482,6 +478,7 @@ async function showLoginScreen() {
  */
 function initializeApp() {
   console.log("App initialized. Checking for user session...");
+  logoutBtn.innerHTML = logoutIconSVG; // Correctly initialize the icon
 
   onAuthStateChanged(auth, user => {
     if (user) {
