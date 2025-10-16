@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
+  <title>Optimiser Feedback Portal - Edited from VS Code!</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  
+    <div class="container">
+      <header class="app-header">
+        <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
+        <h1>Optimiser Feedback Portal</h1>
+        <p>Log issues, track progress, and find existing feedback.</p>
+      </header>
+
+      <div class="controls">
+        <input type="search" id="search-bar" placeholder="🔎 Search by title, description, or category...">
+        <div class="main-actions">
+          <button id="refresh-btn" class="button-icon" title="Refresh Data">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          </button>
+          <button id="log-new-issue-btn" class="button-primary">Log New Issue</button>
+        </div>
+      </div>
+    
+      <div class="filter-sort-container">
+          <div class="filter-sort-header">
+              <label class="group-label">Filter by:</label>
+              <label class="group-label">Sort by:</label>
+          </div>
+          <div class="filter-sort-controls">
+              <div class="filter-group">
+                  <div class="filter-item"><label for="filter-category-select">Category</label><select id="filter-category-select"><option value="all">All</option></select></div>
+                  <div class="filter-item"><label for="filter-status-select">Status</label><select id="filter-status-select"><option value="all" selected>All</option><option value="all-active">All Active</option><option value="In Progress">In Progress</option><option value="Resolved">Resolved</option><option value="Archived">Archived</option></select></div>
+                  <div class="filter-item"><label for="filter-priority-select">Priority</label><select id="filter-priority-select"><option value="all">All</option><option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+                  <div class="filter-item"><label for="filter-submitter-select">Submitter</label><select id="filter-submitter-select"><option value="all">All</option></select></div>
+                  <button id="reset-filters-btn" class="button-secondary">Reset</button>
+              </div>
+              <div class="sort-group">
+                  <select id="sort-select"><option value="date-newest">Date (Newest First)</option><option value="date-oldest">Date (Oldest First)</option><option value="priority-high-low">Priority (High to Low)</option><option value="priority-low-high">Priority (Low to High)</option><option value="submitter-az">Submitter (A-Z)</option></select>
+              </div>
+          </div>
+      </div>
+
+      <div id="pinned-section" class="pinned-container" style="display: none;">
+        <h2>📌 Pinned Issues</h2>
+        <div id="pinned-issues-container"></div>
+      </div>
+
+      <main id="issues-container"><p class="placeholder-text">Loading issues...</p></main>
+
+      <div id="archived-section" class="archived-container">
+        <div id="archived-header" class="archived-header"><h3>Archived Issues (0)</h3><span class="archived-toggle">Show</span></div>
+        <div id="archived-issues-container" class="archived-issues-content"></div>
+      </div>
+    </div>
+
+    <!-- Main Issue Form Modal -->
+    <div id="form-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header"><h2>Log a New Issue or Suggestion</h2><span class="close-button">&times;</span></div>
+        <div class="modal-body"><form id="issue-form" novalidate>
+          <div class="form-group form-group-with-button"><label for="name">Your Name<span class="required-star">*</span></label><div class="input-with-button"><select id="name" name="name" required></select><button type="button" id="add-person-btn" class="button-icon" title="Add New Person">+</button></div></div>
+          <div class="form-group"><label for="category">Category<span class="required-star">*</span></label><select id="category" name="category" required><option value="" disabled selected>Select a Category</option></select></div>
+          <div class="form-group"><label for="title">Title / Summary<span class="required-star">*</span></label><input type="text" id="title" name="title" required minlength="10" maxlength="275"><div class="input-hint-container"><span class="input-hint">10-275 characters</span><span id="title-char-counter">0 / 275</span></div></div>
+          <div class="form-group"><label for="type">Type<span class="required-star">*</span></label><select id="type" name="type" required><option value="" disabled selected>Select a Type</option><option value="Bug">Bug</option><option value="Feature Request">Feature Request</option><option value="UI/UX Suggestion">UI/UX Suggestion</option><option value="Question">Question</option><option value="Other">Other</option></select></div>
+          <div class="form-group"><label>Priority</label><div class="radio-group"><label><input type="radio" name="priority" value="Low" checked> Low</label><label><input type="radio" name="priority" value="Medium"> Medium</label><label><input type="radio" name="priority" value="High"> High</label><label><input type="radio" name="priority" value="Critical"> Critical</label></div></div>
+          <div class="form-group"><label for="description">Description</label><textarea id="description" name="description" rows="4"></textarea></div>
+          <div class="form-group"><label for="screenshot">Attach Screenshot (Optional)</label><input type="file" id="screenshot" name="screenshot" accept="image/*"></div>
+          <div class="form-actions"><button type="submit" id="submit-btn" class="button-primary">Submit Issue</button></div>
+        </form></div>
+      </div>
+    </div>
+  
+    <!-- Issue Details Modal -->
+    <div id="details-modal" class="modal">
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h2 id="details-title">Issue Details</h2>
+          <span class="close-button">&times;</span>
+        </div>
+        <div class="modal-body" id="details-modal-body">
+          <div id="details-content"></div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Add Person Modal -->
+    <div id="add-person-modal" class="modal">
+      <div class="modal-content confirm-modal-content">
+        <div class="modal-header"><h2>Add New Person</h2><span class="close-button">&times;</span></div>
+        <div class="modal-body">
+          <form id="add-person-form" novalidate><div class="form-group"><label for="new-person-name">Name</label><input type="text" id="new-person-name" required></div><div class="form-group"><label for="new-person-email">Email</label><input type="email" id="new-person-email" required></div><div class="form-actions"><button type="submit" id="add-person-submit-btn" class="button-primary">Save Person</button></div></form>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Generic Confirmation Modal -->
+    <div id="confirm-modal" class="modal">
+      <div class="modal-content confirm-modal-content">
+        <div class="modal-header"><h2 id="confirm-title">Confirm Action</h2></div>
+        <div class="modal-body">
+          <p id="confirm-message">Are you sure?</p>
+          <div class="form-actions">
+              <button id="confirm-no-btn" class="button-secondary">Cancel</button>
+              <button id="confirm-yes-btn" class="button-danger">Yes, Proceed</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<script type="module" src="firebase-init.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
