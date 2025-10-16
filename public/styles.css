@@ -292,4 +292,97 @@ textarea { resize: vertical; min-height: 100px; }
   #issues-container, .archived-issues-content { grid-template-columns: 1fr; }
   .filter-sort-controls, .filter-group, .sort-group { flex-direction: column; align-items: stretch; }
   .filter-sort-header { display: none; }
+
+  /* Login Screen Styling */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  padding: 2rem;
+}
+.login-box {
+  background-color: var(--card-background);
+  padding: 3rem 4rem;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  border-top: 5px solid var(--primary-color);
+  max-width: 600px;
+  width: 100%;
+}
+.login-box .header-logo {
+  max-height: 80px;
+  margin-bottom: 2rem;
+}
+.login-box h1 {
+  font-size: 2rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+.login-box p {
+  color: var(--subtle-text);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+.people-list-container {
+  display: grid; /* Use grid for columns */
+  grid-template-columns: 1fr 1fr; /* Two equal-width columns */
+  gap: 0.75rem;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.person-button {
+  /* This now inherits from .button-primary but with full width */
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-family: inherit;
+  background-color: var(--primary-color);
+  color: white;
+  text-align: left;
+}
+.person-button:hover {
+  background-color: var(--primary-hover);
+}
+
+/* User Display Styling */
+.app-header {
+  position: relative; /* Required for absolute positioning of children */
+}
+.user-display-container {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #eef5fc;
+  border-radius: 8px;
+  border: 1px solid var(--primary-color);
+}
+.user-display-container span {
+  font-weight: 500;
+  color: var(--text-color);
+}
+.logout-icon {
+  color: var(--subtle-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logout-icon:hover {
+  color: var(--danger-color);
+}
+.logout-icon svg {
+  width: 22px;
+  height: 22px;
+}
 }

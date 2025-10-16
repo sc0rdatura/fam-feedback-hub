@@ -17,12 +17,18 @@ const formModal = document.getElementById('form-modal');
 const issueForm = document.getElementById('issue-form');
 const submitBtn = document.getElementById('submit-btn');
 const categorySelect = document.getElementById('category');
-const nameSelect = document.getElementById('name');
+const loginScreen = document.getElementById('login-screen');
+const mainAppContainer = document.getElementById('main-app-container');
+const peopleListContainer = document.getElementById('people-list-container');
 const confirmModal = document.getElementById('confirm-modal');
 const confirmTitle = document.getElementById('confirm-title');
 const confirmMessage = document.getElementById('confirm-message');
 const confirmYesBtn = document.getElementById('confirm-yes-btn');
 const confirmNoBtn = document.getElementById('confirm-no-btn');
+const userDisplayContainer = document.getElementById('user-display');
+const userNameDisplay = document.getElementById('user-name-display');
+const logoutBtn = document.getElementById('logout-btn');
+logoutBtn.innerHTML = logoutIconSVG;
 // Filter and Sort Controls
 const searchBar = document.getElementById('search-bar');
 const filterCategorySelect = document.getElementById('filter-category-select');
@@ -38,11 +44,13 @@ const sortSelect = document.getElementById('sort-select');
 const STATUS_OPTIONS = ['New', 'In Progress', 'Resolved'];
 const dotsIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>';
 const archiveButtonSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 1a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1H.5zM1 2.5v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-11H1zm2 3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5z" /></svg>';
+const logoutIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>';
 
 // =================================================================
 //  STATE
 // =================================================================
-let currentUser = null;
+let firebaseUser = null; // For the anonymous auth user from Firebase
+let loggedInPerson = null; // For the user profile from 'people' collection
 let allIssues = []; // Master list of all issues from Firestore
 
 // =================================================================
@@ -62,6 +70,14 @@ function showArchiveConfirm(issueId) {
     handleStatusChange(issueId, 'Archived');
     confirmModal.style.display = 'none';
   };
+
+}
+/**
+ * Logs the user out by clearing localStorage and reloading the page.
+ */
+function handleLogout() {
+  localStorage.removeItem('loggedInUser');
+  location.reload(); // The simplest way to reset the app state
 }
 
 /**
@@ -80,28 +96,6 @@ async function handleStatusChange(issueId, newStatus) {
   } catch (error) {
     console.error("Error updating status:", error);
     alert("Failed to update status. Please try again.");
-  }
-}
-
-/**
- * Fetches people from Firestore and populates the name dropdowns.
- */
-async function populatePeopleDropdown() {
-  console.log("Fetching people...");
-  try {
-    const peopleQuery = query(collection(db, "people"), orderBy("name"));
-    const querySnapshot = await getDocs(peopleQuery);
-    let formOptionsHtml = '<option value="" disabled selected>Select a Name</option>';
-    let filterOptionsHtml = '<option value="all">All</option>'; // Start with 'All' for the filter
-    querySnapshot.forEach((doc) => {
-      const personName = doc.data().name;
-      formOptionsHtml += `<option value="${personName}">${personName}</option>`;
-      filterOptionsHtml += `<option value="${personName}">${personName}</option>`;
-    });
-    nameSelect.innerHTML = formOptionsHtml;
-    filterSubmitterSelect.innerHTML = filterOptionsHtml;
-  } catch (error) {
-    console.error("Error fetching people:", error);
   }
 }
 
@@ -148,7 +142,7 @@ async function handleFormSubmit(e) {
       priority: formData.get('priority'),
       description: formData.get('description'),
       submitterId: currentUser.uid,
-      submitterName: formData.get('name'),
+      submitterName: loggedInPerson.name,
       status: "New",
       isPinned: false,
       createdAt: serverTimestamp()
@@ -401,6 +395,7 @@ function setupEventListeners() {
   });
 
   issueForm.addEventListener('submit', handleFormSubmit);
+  logoutBtn.addEventListener('click', handleLogout);
 
   const allFiltersAndSort = [searchBar, sortSelect, filterStatusSelect, filterPrioritySelect, filterSubmitterSelect, filterCategorySelect];
   allFiltersAndSort.forEach(el => el.addEventListener('input', applyFiltersAndSort));
@@ -422,27 +417,112 @@ function setupEventListeners() {
 }
 
 /**
- * Initializes the application and handles user authentication state.
+ * The main entry point for the authenticated part of the app.
+ */
+function startApp() {
+  console.log(`Starting app for user: ${loggedInPerson.name}`);
+  listenForIssues();
+  setupEventListeners();
+  populateCategoryDropdown();
+  // We now populate the filter dropdown from the main people list
+  populateFilterDropdowns(); 
+}
+
+/**
+ * Handles the user selecting their name from the login screen.
+ * @param {string} personName - The name of the person selected.
+ */
+function handlePersonSelect(personName) {
+  loggedInPerson = { name: personName };
+  // Store the selected person's info in localStorage for future visits
+  localStorage.setItem('loggedInUser', JSON.stringify(loggedInPerson));
+  userNameDisplay.textContent = `Logged in as: ${loggedInPerson.name}`;
+  loginScreen.style.display = 'none';
+  mainAppContainer.style.display = 'block';
+
+  startApp();
+}
+
+/**
+ * Fetches people from Firestore and displays them on the login screen.
+ */
+async function showLoginScreen() {
+  console.log("Showing login screen and fetching people...");
+  try {
+    const peopleQuery = query(collection(db, "people"), orderBy("name"));
+    const querySnapshot = await getDocs(peopleQuery);
+
+    if (querySnapshot.empty) {
+      peopleListContainer.innerHTML = '<p class="placeholder-text-small error">No people found in the database.</p>';
+      return;
+    }
+
+    let peopleHtml = '';
+    querySnapshot.forEach((doc) => {
+      const personName = doc.data().name;
+      peopleHtml += `<button class="person-button" data-name="${personName}">${personName}</button>`;
+    });
+    peopleListContainer.innerHTML = peopleHtml;
+
+    peopleListContainer.addEventListener('click', (e) => {
+      if (e.target && e.target.classList.contains('person-button')) {
+        const selectedName = e.target.dataset.name;
+        handlePersonSelect(selectedName);
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching people for login:", error);
+    peopleListContainer.innerHTML = '<p class="placeholder-text-small error">Could not load names. Please refresh.</p>';
+  }
+}
+
+/**
+ * Initializes the entire application. Checks for a logged-in user first.
  */
 function initializeApp() {
-  console.log("App initialized. Waiting for user authentication...");
+  console.log("App initialized. Checking for user session...");
 
   onAuthStateChanged(auth, user => {
     if (user) {
-      currentUser = user;
-      console.log("User is signed in anonymously! UID:", user.uid);
-      listenForIssues();
-      setupEventListeners();
-      populateCategoryDropdown();
-      populatePeopleDropdown();
+      firebaseUser = user;
+      console.log("Firebase anonymous user is signed in:", user.uid);
+
+      const savedUser = localStorage.getItem('loggedInUser');
+      if (savedUser) {
+        loggedInPerson = JSON.parse(savedUser);
+        userNameDisplay.textContent = `Logged in as: ${loggedInPerson.name}`;
+        loginScreen.style.display = 'none';
+        mainAppContainer.style.display = 'block';
+        startApp();
+      } else {
+        showLoginScreen();
+      }
+
     } else {
-      currentUser = null;
       console.log("User is not signed in. Attempting anonymous sign-in...");
       signInAnonymously(auth).catch(error => {
         console.error("Anonymous sign-in failed:", error);
+        document.body.innerHTML = '<p class="placeholder-text error">Fatal Error: Could not authenticate.</p>';
       });
     }
   });
+}
+
+// We need a new function to populate the filter dropdowns, separate from the form dropdowns
+async function populateFilterDropdowns() {
+  try {
+    const peopleQuery = query(collection(db, "people"), orderBy("name"));
+    const peopleSnapshot = await getDocs(peopleQuery);
+    let peopleOptions = '<option value="all">All</option>';
+    peopleSnapshot.forEach(doc => {
+      const name = doc.data().name;
+      peopleOptions += `<option value="${name}">${name}</option>`;
+    });
+    filterSubmitterSelect.innerHTML = peopleOptions;
+  } catch (error) {
+    console.error("Error populating filter dropdowns:", error);
+  }
 }
 
 // =================================================================
