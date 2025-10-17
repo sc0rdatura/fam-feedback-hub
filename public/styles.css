@@ -176,8 +176,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 .priority-tag.priority-medium { background-color: var(--priority-medium); }
 .priority-tag.priority-high { background-color: var(--priority-high); }
 .priority-tag.priority-critical { background-color: var(--priority-critical); }
-.comment-count { display: flex; align-items: center; gap: 0.3rem; color: var(--subtle-text); }
-.comment-count svg { width: 16px; height: 16px; }
+.comment-count {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--subtle-text);
+  font-size: 0.9rem;
+  padding: 0.2rem 0.5rem;
+  background-color: #f0f0f0;
+  border-radius: 12px;
+}
+.comment-count svg {
+  width: 16px;
+  height: 16px;
+}
 
 /* Buttons & Controls */
 .button-primary, .button-secondary, .button-danger { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease; font-family: inherit; }
