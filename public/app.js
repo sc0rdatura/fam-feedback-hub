@@ -40,7 +40,12 @@ const archivedSection = document.getElementById('archived-section');
 const archivedHeader = document.getElementById('archived-header');
 const pinnedIssuesContainer = document.getElementById('pinned-issues-container');
 const imageViewerModal = document.getElementById('image-viewer-modal');
-const fullSizeScreenshot = document.getElementById('full-size-screenshot');
+const viewerImage = document.getElementById('viewer-image');
+const imageCounter = document.getElementById('image-counter');
+const prevImageBtn = document.getElementById('prev-image-btn');
+const nextImageBtn = document.getElementById('next-image-btn');
+const downloadImageBtn = document.getElementById('download-image-btn');
+const closeViewerBtn = document.getElementById('close-viewer-btn');
 
 // =================================================================
 //  CONSTANTS & ICONS
@@ -60,6 +65,9 @@ const CLOUDINARY_UPLOAD_PRESET = 'uwhbjka9';
 let firebaseUser = null;
 let loggedInPerson = null;
 let allIssues = [];
+let currentImages = [];
+let currentImageIndex = 0;
+let currentOpenIssue = null;
 
 // =================================================================
 //  CORE APPLICATION LOGIC
@@ -244,15 +252,26 @@ async function handleFormSubmit(e) {
  * Populates the details modal with issue data and comments, then displays it.
  */
 function populateAndShowDetailsModal(issueId, issue) {
+  currentOpenIssue = issue; // Set the currently open issue in our state
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
-  // --- Create screenshots HTML block (if screenshots exist) ---
   let screenshotsHtml = '';
   if (issue.screenshots && issue.screenshots.length > 0) {
     screenshotsHtml = `
-      <h4>Screenshots</h4>
-      <div class="screenshots-container">
-        ${issue.screenshots.map(url => `<img src="${url}" alt="Screenshot thumbnail" class="screenshot-thumbnail">`).join('')}
+      <div class="screenshots-section">
+        <h4>Screenshots (${issue.screenshots.length})</h4>
+        <div class="screenshots-grid">
+          ${issue.screenshots.map((url, index) => `
+            <img src="${url}" alt="Screenshot thumbnail" class="screenshot-thumbnail" data-index="${index}">
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    screenshotsHtml = `
+      <div class="screenshots-section">
+        <h4>Screenshots</h4>
+        <p class="placeholder-text-small">No screenshots attached.</p>
       </div>
     `;
   }
@@ -298,21 +317,9 @@ function populateAndShowDetailsModal(issueId, issue) {
     }
   });
 
-  // --- Add event listener for opening the image viewer ---
-  const screenshotsContainer = detailsContent.querySelector('.screenshots-container');
-  if (screenshotsContainer) {
-    screenshotsContainer.addEventListener('click', (e) => {
-      if (e.target.classList.contains('screenshot-thumbnail')) {
-        fullSizeScreenshot.src = e.target.src; // Set the full-size image source
-        imageViewerModal.style.display = 'block'; // Show the viewer modal
-      }
-    });
-  }
-
   listenForComments(issueId);
   detailsModal.style.display = 'block';
 }
-
 
 /**
  * Fetches a single issue's data from Firestore and opens the details modal.
@@ -401,6 +408,80 @@ async function handleAddComment(issueId, text) {
   }
 }
 
+// --- IMAGE VIEWER FUNCTIONS ---
+
+function showImageAtIndex(index) {
+  // Update the main image source
+  viewerImage.src = currentImages[index];
+  
+  // Update the counter
+  imageCounter.textContent = `${index + 1} / ${currentImages.length}`;
+  
+  // Show/hide counter and nav buttons based on image count
+  const hasMultipleImages = currentImages.length > 1;
+  imageCounter.style.display = hasMultipleImages ? 'block' : 'none';
+  prevImageBtn.style.display = hasMultipleImages ? 'block' : 'none';
+  nextImageBtn.style.display = hasMultipleImages ? 'block' : 'none';
+
+  // Disable/enable buttons at boundaries
+  prevImageBtn.disabled = index === 0;
+  nextImageBtn.disabled = index === currentImages.length - 1;
+}
+
+function openImageViewer(images, startIndex) {
+  if (!images || images.length === 0) return;
+  
+  currentImages = images;
+  currentImageIndex = startIndex;
+  
+  showImageAtIndex(currentImageIndex);
+  
+  imageViewerModal.classList.add('visible');
+}
+
+function closeImageViewer() {
+  imageViewerModal.classList.remove('visible');
+  currentImages = []; // Clear the state
+  viewerImage.src = ''; // Prevent old image flash
+}
+
+function navigateImage(direction) {
+  const newIndex = currentImageIndex + direction;
+  if (newIndex >= 0 && newIndex < currentImages.length) {
+    currentImageIndex = newIndex;
+    showImageAtIndex(currentImageIndex);
+  }
+}
+
+async function downloadCurrentImage() {
+  try {
+    const imageUrl = currentImages[currentImageIndex];
+    // Fetch the image as a blob
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    
+    // Create a temporary link to trigger the download
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    
+    // Extract filename from URL or create a generic one
+    const filename = imageUrl.split('/').pop().split('?')[0] || `screenshot-${Date.now()}.jpg`;
+    link.download = filename;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href); // Clean up memory
+  } catch (error) {
+    console.error('Error downloading image:', error);
+    alert('Could not download the image.');
+  }
+}
+function closeDetailsModal() {
+  detailsModal.style.display = 'none';
+  currentOpenIssue = null; // This is the crucial state cleanup
+}
+
 /**
  * Generates the HTML string for a single issue card.
  */
@@ -477,18 +558,19 @@ if (issue.isPinned) {
             <span class="card-info-text"><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'} | <strong>Category:</strong> ${issue.category || 'N/A'}</span>
             <span class="card-timestamp">${timestamp}</span>
         </div>
-        <div class="card-footer-actions">
+<div class="card-footer-actions">
     ${issue.commentCount > 0 ? `
   <div class="comment-count" title="${issue.commentCount} comments">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/></svg>
     <span>${issue.commentCount}</span>
   </div>
 ` : ''}
-${(issue.screenshots && issue.screenshots.length > 0) ? `
-  <div class="attachment-icon" title="This issue has attachments">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/></svg>
-  </div>
-` : ''}
+    ${(issue.screenshots && issue.screenshots.length > 0) ? `
+      <div class="attachment-indicator" title="${issue.screenshots.length} attachment(s)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/></svg>
+        <span>${issue.screenshots.length}</span>
+      </div>
+    ` : ''}
     <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
 </div>
       </div>
@@ -602,60 +684,55 @@ function listenForIssues() {
  * Sets up all the main event listeners for the application.
  */
 function setupEventListeners() {
+  // Listener for main issue cards (non-pinned)
   issuesContainer.addEventListener('click', (e) => {
     const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
     if (detailsTrigger) {
       handleViewDetails(detailsTrigger.dataset.id);
       return;
     }
-
     const toggleButton = e.target.closest('.card-actions-toggle');
     if (toggleButton) {
-      const dropdown = toggleButton.nextElementSibling;
-      dropdown.classList.toggle('visible');
+      toggleButton.nextElementSibling.classList.toggle('visible');
       return;
     }
-
     const archiveButton = e.target.closest('.archive-btn');
     if (archiveButton) {
       showArchiveConfirm(archiveButton.dataset.id);
       return;
     }
-
     const pinButton = e.target.closest('.pin-btn');
     if (pinButton) {
-      const shouldPin = pinButton.dataset.pin === 'true';
-      handlePinToggle(pinButton.dataset.id, shouldPin);
+      handlePinToggle(pinButton.dataset.id, pinButton.dataset.pin === 'true');
       return;
     }
   });
-// --- ADD THIS NEW LISTENER BLOCK ---
-    pinnedIssuesContainer.addEventListener('click', (e) => {
-      // Handle clicks for details, menu toggles, and pin/unpin actions
-      const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
-      if (detailsTrigger) {
-        handleViewDetails(detailsTrigger.dataset.id);
-        return;
-      }
-      const toggleButton = e.target.closest('.card-actions-toggle');
-      if (toggleButton) {
-        const dropdown = toggleButton.nextElementSibling;
-        dropdown.classList.toggle('visible');
-        return;
-      }
-      const pinButton = e.target.closest('.pin-btn');
-      if (pinButton) {
-        const shouldPin = pinButton.dataset.pin === 'true';
-        handlePinToggle(pinButton.dataset.id, shouldPin);
-        return;
-      }
-      const archiveButton = e.target.closest('.archive-btn');
-      if (archiveButton) {
-        showArchiveConfirm(archiveButton.dataset.id);
-        return;
-      }
-    });
 
+  // Listener for pinned issue cards
+  pinnedIssuesContainer.addEventListener('click', (e) => {
+    const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
+    if (detailsTrigger) {
+      handleViewDetails(detailsTrigger.dataset.id);
+      return;
+    }
+    const toggleButton = e.target.closest('.card-actions-toggle');
+    if (toggleButton) {
+      toggleButton.nextElementSibling.classList.toggle('visible');
+      return;
+    }
+    const pinButton = e.target.closest('.pin-btn');
+    if (pinButton) {
+      handlePinToggle(pinButton.dataset.id, pinButton.dataset.pin === 'true');
+      return;
+    }
+    const archiveButton = e.target.closest('.archive-btn');
+    if (archiveButton) {
+      showArchiveConfirm(archiveButton.dataset.id);
+      return;
+    }
+  });
+
+  // Listener for archived issue cards
   archivedIssuesContainer.addEventListener('click', (e) => {
     const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
     if (detailsTrigger) {
@@ -664,8 +741,7 @@ function setupEventListeners() {
     }
     const toggleButton = e.target.closest('.card-actions-toggle');
     if (toggleButton) {
-      const dropdown = toggleButton.nextElementSibling;
-      dropdown.classList.toggle('visible');
+      toggleButton.nextElementSibling.classList.toggle('visible');
       return;
     }
     const unarchiveButton = e.target.closest('.unarchive-btn');
@@ -675,24 +751,45 @@ function setupEventListeners() {
     }
   });
 
+  // Listeners for status changes on cards
   issuesContainer.addEventListener('change', (e) => {
-    if (e.target && e.target.classList.contains('status-select-card')) {
-      const issueId = e.target.dataset.id;
-      const newStatus = e.target.value;
-      handleStatusChange(issueId, newStatus);
+    if (e.target.classList.contains('status-select-card')) {
+      handleStatusChange(e.target.dataset.id, e.target.value);
+    }
+  });
+  pinnedIssuesContainer.addEventListener('change', (e) => {
+    if (e.target.classList.contains('status-select-card')) {
+      handleStatusChange(e.target.dataset.id, e.target.value);
     }
   });
 
+  // --- MODAL & GLOBAL LISTENERS ---
+
+  // Generic close buttons for any modal
   document.querySelectorAll('.close-button').forEach(btn => {
     btn.addEventListener('click', () => {
-      btn.closest('.modal').style.display = 'none';
+      const modal = btn.closest('.modal');
+      // Use our dedicated function for the details modal
+      if (modal.id === 'details-modal') {
+        closeDetailsModal();
+      } else {
+        modal.style.display = 'none'; // Close other modals normally
+      }
     });
   });
 
+  // Backdrop click to close modals
   window.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal')) {
-      e.target.style.display = 'none';
+      if (e.target.id === 'details-modal') {
+        closeDetailsModal();
+      } else if (e.target.id === 'image-viewer-modal') {
+         // This is handled by a separate listener now
+      } else {
+        e.target.style.display = 'none';
+      }
     }
+    // Close dropdown menus if clicking outside
     if (!e.target.closest('.card-actions-menu')) {
       document.querySelectorAll('.card-actions-dropdown.visible').forEach(menu => {
         menu.classList.remove('visible');
@@ -709,16 +806,14 @@ function setupEventListeners() {
 
   issueForm.addEventListener('submit', handleFormSubmit);
 
-  const allFiltersAndSort = [searchBar, sortSelect, filterStatusSelect, filterPrioritySelect, filterSubmitterSelect, filterCategorySelect];
-  allFiltersAndSort.forEach(el => el.addEventListener('input', applyFiltersAndSort));
+  // Filters and Sorting
+  [searchBar, sortSelect, filterStatusSelect, filterPrioritySelect, filterSubmitterSelect, filterCategorySelect].forEach(el => el.addEventListener('input', applyFiltersAndSort));
   
-  const searchResetBtn = document.getElementById('refresh-btn');
-  searchResetBtn.addEventListener('click', () => {
+  document.getElementById('refresh-btn').addEventListener('click', () => {
     searchBar.value = '';
     applyFiltersAndSort();
-  });
-
-  resetFiltersBtn.addEventListener('click', () => {
+});
+resetFiltersBtn.addEventListener('click', () => {
     filterStatusSelect.value = 'all';
     filterPrioritySelect.value = 'all';
     filterSubmitterSelect.value = 'all';
@@ -732,6 +827,35 @@ function setupEventListeners() {
   archivedHeader.addEventListener('click', () => {
     const isExpanded = archivedSection.classList.toggle('expanded');
     archivedHeader.querySelector('.archived-toggle').textContent = isExpanded ? 'Hide' : 'Show';
+  });
+
+  // --- Image Viewer Listeners ---
+  prevImageBtn.addEventListener('click', () => navigateImage(-1));
+  nextImageBtn.addEventListener('click', () => navigateImage(1));
+  downloadImageBtn.addEventListener('click', downloadCurrentImage);
+  closeViewerBtn.addEventListener('click', closeImageViewer);
+
+  imageViewerModal.addEventListener('click', (e) => {
+    if (e.target === imageViewerModal) {
+      closeImageViewer();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!imageViewerModal.classList.contains('visible')) return;
+    if (e.key === 'ArrowRight') nextImageBtn.click();
+    else if (e.key === 'ArrowLeft') prevImageBtn.click();
+    else if (e.key === 'Escape') closeImageViewer();
+  });
+
+  // --- Listener for Thumbnail Clicks (Event Delegation) ---
+  detailsModal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('screenshot-thumbnail')) {
+      if (currentOpenIssue && currentOpenIssue.screenshots) {
+        const startIndex = parseInt(e.target.dataset.index, 10);
+        openImageViewer(currentOpenIssue.screenshots, startIndex);
+      }
+    }
   });
 }
 

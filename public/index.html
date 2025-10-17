@@ -133,15 +133,22 @@
       </div>
     </div>
 
-<!-- Image Viewer Modal -->
-<div id="image-viewer-modal" class="modal">
-  <div class="modal-content modal-lg">
-    <div class="modal-header">
-      <h2>Screenshot Viewer</h2>
-      <span class="close-button">&times;</span>
+<!-- Lightbox Image Viewer Modal -->
+<div id="image-viewer-modal" class="modal image-modal">
+  <div class="image-modal-content">
+    <div class="image-modal-header">
+      <span id="image-counter" class="image-counter"></span>
+      <div class="image-modal-actions">
+        <button id="download-image-btn" class="image-action-btn" title="Download Image">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+        </button>
+        <span id="close-viewer-btn" class="close-button">&times;</span>
+      </div>
     </div>
-    <div class="modal-body" id="image-viewer-content">
-      <img id="full-size-screenshot" src="" alt="Full-size screenshot" style="width: 100%; height: auto; display: block;">
+    <div class="image-modal-body">
+      <button id="prev-image-btn" class="image-nav-btn prev-btn">‹</button>
+      <img id="viewer-image" src="" alt="Screenshot">
+      <button id="next-image-btn" class="image-nav-btn next-btn">›</button>
     </div>
   </div>
 </div>
