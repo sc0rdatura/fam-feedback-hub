@@ -9,6 +9,7 @@ import { auth, db } from './firebase-init.js';
 //  DOM ELEMENT CACHING
 // =================================================================
 const issuesContainer = document.getElementById('issues-container');
+const archivedIssuesContainer = document.getElementById('archived-issues-container');
 const detailsModal = document.getElementById('details-modal');
 const detailsTitle = document.getElementById('details-title');
 const detailsContent = document.getElementById('details-content');
@@ -37,8 +38,7 @@ const userNameDisplay = document.getElementById('user-name-display');
 const logoutBtn = document.getElementById('logout-btn');
 const archivedSection = document.getElementById('archived-section');
 const archivedHeader = document.getElementById('archived-header');
-const archivedIssuesContainer = document.getElementById('archived-issues-container');
-
+const pinnedIssuesContainer = document.getElementById('pinned-issues-container');
 
 // =================================================================
 //  CONSTANTS & ICONS
@@ -46,8 +46,9 @@ const archivedIssuesContainer = document.getElementById('archived-issues-contain
 const STATUS_OPTIONS = ['New', 'In Progress', 'Resolved'];
 const dotsIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>';
 const archiveButtonSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 1a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1H.5zM1 2.5v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-11H1zm2 3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5z" /></svg>';
-const logoutIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>';
 const unarchiveIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zM2 4v8h12V4zM8.5 7.146a.5.5 0 0 0-.708.708L9.293 9.354a.5.5 0 0 0 .708 0l1.5-1.5a.5.5 0 0 0-.708-.708L10 8.293zM10 5.5a.5.5 0 0 0-1 0v3a.5.5 0 0 0 1 0z"/></svg>';
+const pinIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1 0 .707c-.48.48-1.072.588-1.503.588-.177 0-.335-.018-.46-.039l-3.134 3.134a5.927 5.927 0 0 1 .16 1.013c.046.702-.032 1.687-.72 2.375a.5.5 0 0 1-.707 0l-2.829-2.828-3.182 3.182c-.195.195-1.219.902-1.414.707-.195-.195.512-1.22.707-1.414l3.182-3.182-2.828-2.829a.5.5 0 0 1 0-.707c.688-.688 1.673-.767 2.375-.72a5.922 5.922 0 0 1 1.013.16l3.134-3.133a2.772 2.772 0 0 1-.04-.461c0-.43.108-1.022.589-1.503a.5.5 0 0 1 .146-.353z"/></svg>';
+const logoutIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>';
 
 // =================================================================
 //  STATE
@@ -94,6 +95,21 @@ async function handleStatusChange(issueId, newStatus) {
   } catch (error) {
     console.error("Error updating status:", error);
     alert("Failed to update status. Please try again.");
+  }
+}
+
+/**
+ * Toggles an issue's 'isPinned' status in Firestore.
+ */
+async function handlePinToggle(issueId, shouldPin) {
+  console.log(`Setting pin status for ${issueId} to ${shouldPin}`);
+  const docRef = doc(db, "issues", issueId);
+  try {
+    await updateDoc(docRef, { isPinned: shouldPin });
+    console.log("Pin status updated successfully!");
+  } catch (error) {
+    console.error("Error updating pin status:", error);
+    alert("Failed to update pin status.");
   }
 }
 
@@ -163,13 +179,10 @@ async function handleFormSubmit(e) {
 
 /**
  * Populates the details modal with issue data and comments, then displays it.
- * @param {string} issueId - The ID of the issue being viewed.
- * @param {object} issue - The issue data object from Firestore.
  */
 function populateAndShowDetailsModal(issueId, issue) {
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
-  // Start building the HTML for the modal content
   let detailsHtml = `
     <div class="details-grid">
       <div><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'}</div>
@@ -199,26 +212,43 @@ function populateAndShowDetailsModal(issueId, issue) {
   `;
   detailsContent.innerHTML = detailsHtml;
 
-  // Now that the HTML is in the DOM, set up the comment form listener
   const addCommentForm = document.getElementById('add-comment-form');
   addCommentForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const commentText = e.target.commentText.value;
     if (commentText.trim()) {
       handleAddComment(issueId, commentText);
-      e.target.reset(); // Clear the form
+      e.target.reset();
     }
   });
 
-  // Fetch and display the comments for this issue
   listenForComments(issueId);
-
   detailsModal.style.display = 'block';
 }
 
 /**
+ * Fetches a single issue's data from Firestore and opens the details modal.
+ */
+async function handleViewDetails(issueId) {
+  console.log(`Fetching details for issue: ${issueId}`);
+  try {
+    const docRef = doc(db, "issues", issueId);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      populateAndShowDetailsModal(issueId, docSnap.data());
+    } else {
+      console.error("No such document!");
+      alert("Error: Could not find the selected issue.");
+    }
+  } catch (error) {
+    console.error("Error getting document:", error);
+    alert("An error occurred while fetching the issue details.");
+  }
+}
+
+/**
  * Creates a real-time listener for comments on a specific issue.
- * @param {string} issueId - The ID of the issue to get comments for.
  */
 function listenForComments(issueId) {
   const commentsList = document.getElementById('comments-list');
@@ -253,8 +283,6 @@ function listenForComments(issueId) {
 
 /**
  * Adds a new comment document to Firestore.
- * @param {string} issueId - The ID of the issue to comment on.
- * @param {string} text - The content of the comment.
  */
 async function handleAddComment(issueId, text) {
   const submitBtn = document.getElementById('submit-comment-btn');
@@ -264,7 +292,7 @@ async function handleAddComment(issueId, text) {
     const commentsCollection = collection(db, `issues/${issueId}/comments`);
     await addDoc(commentsCollection, {
       text: text,
-      commenterName: loggedInPerson.name, // Use the globally stored name
+      commenterName: loggedInPerson.name,
       createdAt: serverTimestamp()
     });
   } catch (error) {
@@ -276,62 +304,7 @@ async function handleAddComment(issueId, text) {
 }
 
 /**
- * Fetches a single issue's data from Firestore and opens the details modal.
- */
-async function handleViewDetails(issueId) {
-  console.log(`Fetching details for issue: ${issueId}`);
-  try {
-    const docRef = doc(db, "issues", issueId);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      populateAndShowDetailsModal(issueId, docSnap.data());
-    } else {
-      console.error("No such document!");
-      alert("Error: Could not find the selected issue.");
-    }
-  } catch (error) {
-    console.error("Error getting document:", error);
-    alert("An error occurred while fetching the issue details.");
-  }
-}
-
-/**
- * Takes an array of issues, separates them into active and archived, and renders them to the page.
- * @param {Array} issuesToDisplay - The filtered and sorted list of issues.
- */
-function renderIssues(issuesToDisplay) {
-  // 1. Separate issues into active and archived
-  const activeIssues = issuesToDisplay.filter(issue => issue.status !== 'Archived');
-  const archivedIssues = issuesToDisplay.filter(issue => issue.status === 'Archived');
-
-  // 2. Render Active Issues
-  if (activeIssues.length > 0) {
-    issuesContainer.innerHTML = activeIssues.map(issue => createIssueCardHtml(issue)).join('');
-  } else {
-    issuesContainer.innerHTML = '<p class="placeholder-text">No active issues match the current filters.</p>';
-  }
-
-  // 3. Render Archived Issues and update the header
-  if (allIssues.filter(issue => issue.status === 'Archived').length > 0) { // Check master list for total
-    archivedSection.style.display = 'block';
-    const archivedHeader = document.getElementById('archived-header');
-    archivedHeader.querySelector('h3').textContent = `Archived Issues (${archivedIssues.length})`;
-    
-    if (archivedIssues.length > 0) {
-      document.getElementById('archived-issues-container').innerHTML = archivedIssues.map(issue => createIssueCardHtml(issue)).join('');
-    } else {
-      document.getElementById('archived-issues-container').innerHTML = '<p class="placeholder-text-small">No archived issues match the current filters.</p>';
-    }
-  } else {
-    archivedSection.style.display = 'none';
-  }
-}
-
-/**
  * Generates the HTML string for a single issue card.
- * @param {object} issue - The issue data object.
- * @returns {string} The HTML string for the card.
  */
 function createIssueCardHtml(issue) {
   const issueId = issue.id;
@@ -351,12 +324,30 @@ function createIssueCardHtml(issue) {
     </div>
   `;
 
-  // --- NEW LOGIC: Decide which buttons to show ---
   let menuButtons = '';
   if (status === 'Archived') {
-    menuButtons = `<button class="unarchive-btn" data-id="${issueId}">${unarchiveIconSVG} Unarchive</button>`;
+    menuButtons = `<button class="unarchive-btn archive-btn" data-id="${issueId}">${unarchiveIconSVG} Unarchive</button>`;
   } else {
-    menuButtons = `<button class="archive-btn" data-id="${issueId}">${archiveButtonSVG} Archive</button>`;
+   let pinButton = '';
+if (issue.isPinned) {
+  // If it's already pinned, the user can always unpin it.
+  pinButton = `<button class="pin-btn" data-id="${issueId}" data-pin="false">${pinIconSVG} Unpin</button>`;
+} else {
+  // If it's not pinned, check the current pin count.
+  const pinnedCount = allIssues.filter(i => i.isPinned && i.status !== 'Archived').length;
+  if (pinnedCount >= 4) {
+    // If the limit is reached, show a disabled button.
+    pinButton = `<button class="pin-btn" data-id="${issueId}" disabled title="Maximum of 4 issues can be pinned.">${pinIconSVG} Pin</button>`;
+  } else {
+    // Otherwise, show the normal pin button.
+    pinButton = `<button class="pin-btn" data-id="${issueId}" data-pin="true">${pinIconSVG} Pin</button>`;
+  }
+}
+    
+    menuButtons = `
+      ${pinButton}
+      <button class="archive-btn" data-id="${issueId}">${archiveButtonSVG} Archive</button>
+    `;
   }
 
   const cardMenu = `
@@ -394,6 +385,44 @@ function createIssueCardHtml(issue) {
       </div>
     </div>
   `;
+}
+
+/**
+ * Takes an array of issues, separates them into pinned, active and archived, and renders them.
+ */
+function renderIssues(issuesToDisplay) {
+  const pinnedSection = document.getElementById('pinned-section');
+  const pinnedIssuesContainer = document.getElementById('pinned-issues-container');
+
+  const pinnedIssues = issuesToDisplay.filter(issue => issue.isPinned && issue.status !== 'Archived').slice(0, 4);
+  const activeIssues = issuesToDisplay.filter(issue => !issue.isPinned && issue.status !== 'Archived');
+  const archivedIssues = issuesToDisplay.filter(issue => issue.status === 'Archived');
+
+  if (pinnedIssues.length > 0) {
+    pinnedSection.style.display = 'block';
+    pinnedIssuesContainer.innerHTML = pinnedIssues.map(issue => createIssueCardHtml(issue)).join('');
+  } else {
+    pinnedSection.style.display = 'none';
+  }
+
+  if (activeIssues.length > 0) {
+    issuesContainer.innerHTML = activeIssues.map(issue => createIssueCardHtml(issue)).join('');
+  } else {
+    issuesContainer.innerHTML = '<p class="placeholder-text">No active issues match the current filters.</p>';
+  }
+
+  if (allIssues.filter(issue => issue.status === 'Archived').length > 0) {
+    archivedSection.style.display = 'block';
+    document.getElementById('archived-header').querySelector('h3').textContent = `Archived Issues (${archivedIssues.length})`;
+    
+    if (archivedIssues.length > 0) {
+      archivedIssuesContainer.innerHTML = archivedIssues.map(issue => createIssueCardHtml(issue)).join('');
+    } else {
+      archivedIssuesContainer.innerHTML = '<p class="placeholder-text-small">No archived issues match the current filters.</p>';
+    }
+  } else {
+    archivedSection.style.display = 'none';
+  }
 }
 
 /**
@@ -483,12 +512,58 @@ function setupEventListeners() {
       showArchiveConfirm(archiveButton.dataset.id);
       return;
     }
+
+    const pinButton = e.target.closest('.pin-btn');
+    if (pinButton) {
+      const shouldPin = pinButton.dataset.pin === 'true';
+      handlePinToggle(pinButton.dataset.id, shouldPin);
+      return;
+    }
+  });
+// --- ADD THIS NEW LISTENER BLOCK ---
+    pinnedIssuesContainer.addEventListener('click', (e) => {
+      // Handle clicks for details, menu toggles, and pin/unpin actions
+      const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
+      if (detailsTrigger) {
+        handleViewDetails(detailsTrigger.dataset.id);
+        return;
+      }
+      const toggleButton = e.target.closest('.card-actions-toggle');
+      if (toggleButton) {
+        const dropdown = toggleButton.nextElementSibling;
+        dropdown.classList.toggle('visible');
+        return;
+      }
+      const pinButton = e.target.closest('.pin-btn');
+      if (pinButton) {
+        const shouldPin = pinButton.dataset.pin === 'true';
+        handlePinToggle(pinButton.dataset.id, shouldPin);
+        return;
+      }
+      const archiveButton = e.target.closest('.archive-btn');
+      if (archiveButton) {
+        showArchiveConfirm(archiveButton.dataset.id);
+        return;
+      }
+    });
+
+  archivedIssuesContainer.addEventListener('click', (e) => {
+    const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
+    if (detailsTrigger) {
+      handleViewDetails(detailsTrigger.dataset.id);
+      return;
+    }
+    const toggleButton = e.target.closest('.card-actions-toggle');
+    if (toggleButton) {
+      const dropdown = toggleButton.nextElementSibling;
+      dropdown.classList.toggle('visible');
+      return;
+    }
     const unarchiveButton = e.target.closest('.unarchive-btn');
     if (unarchiveButton) {
-    // For now, unarchiving will set the status back to 'New'
       handleStatusChange(unarchiveButton.dataset.id, 'New');
       return;
-}
+    }
   });
 
   issuesContainer.addEventListener('change', (e) => {
@@ -532,7 +607,7 @@ function setupEventListeners() {
   searchResetBtn.addEventListener('click', () => {
     searchBar.value = '';
     applyFiltersAndSort();
-});
+  });
 
   resetFiltersBtn.addEventListener('click', () => {
     filterStatusSelect.value = 'all';
@@ -544,28 +619,11 @@ function setupEventListeners() {
   });
 
   logoutBtn.addEventListener('click', handleLogout);
-    archivedIssuesContainer.addEventListener('click', (e) => {
-      const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
-      if (detailsTrigger) {
-        handleViewDetails(detailsTrigger.dataset.id);
-        return;
-      }
-      const toggleButton = e.target.closest('.card-actions-toggle');
-      if (toggleButton) {
-        const dropdown = toggleButton.nextElementSibling;
-        dropdown.classList.toggle('visible');
-        return;
-      }
-      const unarchiveButton = e.target.closest('.unarchive-btn');
-      if (unarchiveButton) {
-        handleStatusChange(unarchiveButton.dataset.id, 'New');
-        return;
-      }
-    });
+
   archivedHeader.addEventListener('click', () => {
-  const isExpanded = archivedSection.classList.toggle('expanded');
-  archivedHeader.querySelector('.archived-toggle').textContent = isExpanded ? 'Hide' : 'Show';
-});
+    const isExpanded = archivedSection.classList.toggle('expanded');
+    archivedHeader.querySelector('.archived-toggle').textContent = isExpanded ? 'Hide' : 'Show';
+  });
 }
 
 /**
@@ -630,7 +688,7 @@ async function showLoginScreen() {
  */
 function initializeApp() {
   console.log("App initialized. Checking for user session...");
-  logoutBtn.innerHTML = logoutIconSVG; // Correctly initialize the icon
+  logoutBtn.innerHTML = logoutIconSVG;
 
   onAuthStateChanged(auth, user => {
     if (user) {
