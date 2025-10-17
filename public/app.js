@@ -2,7 +2,7 @@
 //  IMPORTS
 // =================================================================
 import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, onSnapshot, doc, getDoc, addDoc, serverTimestamp, getDocs, orderBy, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { auth, db } from './firebase-init.js';
 
 // =================================================================
@@ -288,13 +288,23 @@ async function handleAddComment(issueId, text) {
   const submitBtn = document.getElementById('submit-comment-btn');
   submitBtn.disabled = true;
 
+  // Define references to the issue document and the comments subcollection
+  const issueDocRef = doc(db, 'issues', issueId);
+  const commentsCollectionRef = collection(issueDocRef, 'comments');
+
   try {
-    const commentsCollection = collection(db, `issues/${issueId}/comments`);
-    await addDoc(commentsCollection, {
+    // Add the new comment document
+    await addDoc(commentsCollectionRef, {
       text: text,
       commenterName: loggedInPerson.name,
       createdAt: serverTimestamp()
     });
+
+    // Atomically increment the commentCount on the parent issue document
+    await updateDoc(issueDocRef, {
+      commentCount: increment(1)
+    });
+
   } catch (error) {
     console.error("Error adding comment: ", error);
     alert("Failed to add comment.");
@@ -380,8 +390,14 @@ if (issue.isPinned) {
             <span class="card-timestamp">${timestamp}</span>
         </div>
         <div class="card-footer-actions">
-            <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
-        </div>
+    ${issue.commentCount > 0 ? `
+      <div class="comment-count" title="${issue.commentCount} comments">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/></svg>
+        <span>${issue.commentCount}</span>
+      </div>
+    ` : ''}
+    <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
+</div>
       </div>
     </div>
   `;
