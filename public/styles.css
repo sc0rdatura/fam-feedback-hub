@@ -335,3 +335,153 @@ textarea { resize: vertical; min-height: 100px; }
   .filter-sort-controls, .filter-group, .sort-group { flex-direction: column; align-items: stretch; }
   .filter-sort-header { display: none; }
 }
+/* --- Phase 2: Screenshot Display & Viewer (Corrected) --- */
+
+/* Attachment Indicator on Cards */
+.attachment-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--subtle-text);
+  font-size: 0.85rem;
+}
+.attachment-indicator svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Screenshots Section in Details Modal */
+.screenshots-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.screenshots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.screenshot-thumbnail {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+.screenshot-thumbnail:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+  box-shadow: var(--shadow);
+}
+
+.image-modal {
+  z-index: 2000;
+  display: none; /* Default state is hidden */
+  position: fixed; /* Make sure it covers the whole screen */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.image-modal.visible {
+  display: flex; /* When visible, it becomes a flex container */
+  align-items: center;
+  justify-content: center;
+}
+.image-modal .modal-content {
+  background: transparent;
+  padding: 0;
+  margin: 1rem; /* Use margin for spacing, not centering */
+  /* FIX 2: Shrink-wrap the container to fit the image */
+  width: fit-content;
+  max-width: 95vw;
+  max-height: 95vh;
+  box-shadow: none;
+  display: inline-block;
+}
+.image-modal-header {
+  display: flex;
+  justify-content: space-between;
+  /* FIX 3: Ensure vertical alignment for all items */
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0,0,0,0.8);
+  border-radius: 8px 8px 0 0;
+  color: white;
+}
+.image-counter {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.image-modal-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.image-action-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.image-action-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+.image-modal .close-button {
+    position: static;
+    font-size: 2.5rem;
+    line-height: 1;
+}
+.image-modal-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.9);
+  padding: 1rem;
+  border-radius: 0 0 8px 8px;
+  min-height: 300px;
+}
+#viewer-image {
+  max-width: 100%;
+  max-height: calc(95vh - 100px);
+  border-radius: 4px;
+  display: block;
+}
+.image-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  font-size: 3rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  z-index: 2001;
+}
+.image-nav-btn:hover {
+  background: rgba(0,0,0,0.8);
+}
+.image-nav-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+.prev-btn {
+  left: 1rem;
+}
+.next-btn {
+  right: 1rem;
+}
