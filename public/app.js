@@ -37,6 +37,8 @@ const userNameDisplay = document.getElementById('user-name-display');
 const logoutBtn = document.getElementById('logout-btn');
 const archivedSection = document.getElementById('archived-section');
 const archivedHeader = document.getElementById('archived-header');
+const archivedIssuesContainer = document.getElementById('archived-issues-container');
+
 
 // =================================================================
 //  CONSTANTS & ICONS
@@ -45,6 +47,7 @@ const STATUS_OPTIONS = ['New', 'In Progress', 'Resolved'];
 const dotsIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>';
 const archiveButtonSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 1a.5.5 0 0 0 0 1h15a.5.5 0 0 0 0-1H.5zM1 2.5v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-11H1zm2 3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5zm4 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 1 .5-.5z" /></svg>';
 const logoutIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/></svg>';
+const unarchiveIconSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 0 1h-13a.5.5 0 0 1-.5-.5M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zM2 4v8h12V4zM8.5 7.146a.5.5 0 0 0-.708.708L9.293 9.354a.5.5 0 0 0 .708 0l1.5-1.5a.5.5 0 0 0-.708-.708L10 8.293zM10 5.5a.5.5 0 0 0-1 0v3a.5.5 0 0 0 1 0z"/></svg>';
 
 // =================================================================
 //  STATE
@@ -159,12 +162,15 @@ async function handleFormSubmit(e) {
 }
 
 /**
- * Populates the details modal with issue data and displays it.
+ * Populates the details modal with issue data and comments, then displays it.
+ * @param {string} issueId - The ID of the issue being viewed.
+ * @param {object} issue - The issue data object from Firestore.
  */
-function populateAndShowDetailsModal(issue) {
+function populateAndShowDetailsModal(issueId, issue) {
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
-  const detailsHtml = `
+  // Start building the HTML for the modal content
+  let detailsHtml = `
     <div class="details-grid">
       <div><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'}</div>
       <div><strong>Category:</strong> ${issue.category || 'N/A'}</div>
@@ -175,9 +181,98 @@ function populateAndShowDetailsModal(issue) {
     </div>
     <h4>Description</h4>
     <p class="details-description">${issue.description || 'No description provided.'}</p>
+    
+    <div class="comments-section">
+      <h4>Comments</h4>
+      <div id="comments-list"><p class="placeholder-text-small">Loading comments...</p></div>
+      <form id="add-comment-form">
+        <h4>Add a Comment</h4>
+        <div class="form-group">
+          <label for="comment-text">Comment</label>
+          <textarea id="comment-text" name="commentText" rows="3" required></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="submit-comment-btn" class="button-primary">Submit Comment</button>
+        </div>
+      </form>
+    </div>
   `;
   detailsContent.innerHTML = detailsHtml;
+
+  // Now that the HTML is in the DOM, set up the comment form listener
+  const addCommentForm = document.getElementById('add-comment-form');
+  addCommentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const commentText = e.target.commentText.value;
+    if (commentText.trim()) {
+      handleAddComment(issueId, commentText);
+      e.target.reset(); // Clear the form
+    }
+  });
+
+  // Fetch and display the comments for this issue
+  listenForComments(issueId);
+
   detailsModal.style.display = 'block';
+}
+
+/**
+ * Creates a real-time listener for comments on a specific issue.
+ * @param {string} issueId - The ID of the issue to get comments for.
+ */
+function listenForComments(issueId) {
+  const commentsList = document.getElementById('comments-list');
+  const commentsQuery = query(collection(db, `issues/${issueId}/comments`), orderBy("createdAt", "asc"));
+
+  onSnapshot(commentsQuery, (snapshot) => {
+    if (snapshot.empty) {
+      commentsList.innerHTML = '<p class="placeholder-text-small">No comments yet.</p>';
+      return;
+    }
+    let commentsHtml = '';
+    snapshot.forEach(doc => {
+      const comment = doc.data();
+      commentsHtml += `
+        <div class="comment">
+          <div class="comment-header">
+            <strong>${comment.commenterName}</strong>
+            <span>${comment.createdAt ? new Date(comment.createdAt.toDate()).toLocaleString() : ''}</span>
+          </div>
+          <div class="comment-body">
+            <p>${comment.text}</p>
+          </div>
+        </div>
+      `;
+    });
+    commentsList.innerHTML = commentsHtml;
+  }, (error) => {
+    console.error("Error fetching comments:", error);
+    commentsList.innerHTML = '<p class="placeholder-text-small error">Could not load comments.</p>';
+  });
+}
+
+/**
+ * Adds a new comment document to Firestore.
+ * @param {string} issueId - The ID of the issue to comment on.
+ * @param {string} text - The content of the comment.
+ */
+async function handleAddComment(issueId, text) {
+  const submitBtn = document.getElementById('submit-comment-btn');
+  submitBtn.disabled = true;
+
+  try {
+    const commentsCollection = collection(db, `issues/${issueId}/comments`);
+    await addDoc(commentsCollection, {
+      text: text,
+      commenterName: loggedInPerson.name, // Use the globally stored name
+      createdAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Error adding comment: ", error);
+    alert("Failed to add comment.");
+  } finally {
+    submitBtn.disabled = false;
+  }
 }
 
 /**
@@ -190,7 +285,7 @@ async function handleViewDetails(issueId) {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      populateAndShowDetailsModal(docSnap.data());
+      populateAndShowDetailsModal(issueId, docSnap.data());
     } else {
       console.error("No such document!");
       alert("Error: Could not find the selected issue.");
@@ -202,70 +297,103 @@ async function handleViewDetails(issueId) {
 }
 
 /**
- * Takes an array of issues and renders them to the page.
+ * Takes an array of issues, separates them into active and archived, and renders them to the page.
+ * @param {Array} issuesToDisplay - The filtered and sorted list of issues.
  */
 function renderIssues(issuesToDisplay) {
-  if (issuesToDisplay.length === 0) {
-    issuesContainer.innerHTML = '<p class="placeholder-text">No issues match the current filters.</p>';
-    return;
+  // 1. Separate issues into active and archived
+  const activeIssues = issuesToDisplay.filter(issue => issue.status !== 'Archived');
+  const archivedIssues = issuesToDisplay.filter(issue => issue.status === 'Archived');
+
+  // 2. Render Active Issues
+  if (activeIssues.length > 0) {
+    issuesContainer.innerHTML = activeIssues.map(issue => createIssueCardHtml(issue)).join('');
+  } else {
+    issuesContainer.innerHTML = '<p class="placeholder-text">No active issues match the current filters.</p>';
   }
 
-  let issuesHtml = '';
-  issuesToDisplay.forEach(issue => {
-    const issueId = issue.id;
-    const priority = issue.priority || 'Low';
-    const status = issue.status || 'New';
-    const timestamp = issue.createdAt ? new Date(issue.createdAt.toDate()).toLocaleString() : 'No date';
+  // 3. Render Archived Issues and update the header
+  if (allIssues.filter(issue => issue.status === 'Archived').length > 0) { // Check master list for total
+    archivedSection.style.display = 'block';
+    const archivedHeader = document.getElementById('archived-header');
+    archivedHeader.querySelector('h3').textContent = `Archived Issues (${archivedIssues.length})`;
+    
+    if (archivedIssues.length > 0) {
+      document.getElementById('archived-issues-container').innerHTML = archivedIssues.map(issue => createIssueCardHtml(issue)).join('');
+    } else {
+      document.getElementById('archived-issues-container').innerHTML = '<p class="placeholder-text-small">No archived issues match the current filters.</p>';
+    }
+  } else {
+    archivedSection.style.display = 'none';
+  }
+}
 
-    const statusOptionsHtml = STATUS_OPTIONS.map(option => 
-      `<option value="${option}" ${status === option ? 'selected' : ''}>${option}</option>`
-    ).join('');
+/**
+ * Generates the HTML string for a single issue card.
+ * @param {object} issue - The issue data object.
+ * @returns {string} The HTML string for the card.
+ */
+function createIssueCardHtml(issue) {
+  const issueId = issue.id;
+  const priority = issue.priority || 'Low';
+  const status = issue.status || 'New';
+  const timestamp = issue.createdAt ? new Date(issue.createdAt.toDate()).toLocaleString() : 'No date';
 
-    const statusDropdown = `
-      <div class="status-selector">
-        <select class="status-select-card" data-id="${issueId}" ${status === 'Archived' ? 'disabled' : ''}>
-          ${status === 'Archived' ? `<option>Archived</option>` : statusOptionsHtml}
-        </select>
+  const statusOptionsHtml = STATUS_OPTIONS.map(option => 
+    `<option value="${option}" ${status === option ? 'selected' : ''}>${option}</option>`
+  ).join('');
+
+  const statusDropdown = `
+    <div class="status-selector">
+      <select class="status-select-card" data-id="${issueId}" ${status === 'Archived' ? 'disabled' : ''}>
+        ${status === 'Archived' ? `<option>Archived</option>` : statusOptionsHtml}
+      </select>
+    </div>
+  `;
+
+  // --- NEW LOGIC: Decide which buttons to show ---
+  let menuButtons = '';
+  if (status === 'Archived') {
+    menuButtons = `<button class="unarchive-btn" data-id="${issueId}">${unarchiveIconSVG} Unarchive</button>`;
+  } else {
+    menuButtons = `<button class="archive-btn" data-id="${issueId}">${archiveButtonSVG} Archive</button>`;
+  }
+
+  const cardMenu = `
+    <div class="card-actions-menu">
+      <button class="card-actions-toggle">${dotsIconSVG}</button>
+      <div class="card-actions-dropdown">
+        ${menuButtons}
       </div>
-    `;
+    </div>
+  `;
 
-    const cardMenu = `
-      <div class="card-actions-menu">
-        <button class="card-actions-toggle">${dotsIconSVG}</button>
-        <div class="card-actions-dropdown">
-          <button class="archive-btn" data-id="${issueId}">${archiveButtonSVG} Archive</button>
+  const archivedClass = status === 'Archived' ? 'status-archived' : '';
+
+  return `
+    <div class="issue-card priority-${priority.toLowerCase()} ${archivedClass}">
+      <div class="card-header">
+        <h3 class="card-title">${issue.title || 'No Title'}</h3>
+        <div class="card-header-right">
+          <span class="priority-tag priority-${priority.toLowerCase()}">${priority}</span>
+          ${statusDropdown}
+          ${cardMenu}
         </div>
       </div>
-    `;
-
-    const archivedClass = status === 'Archived' ? 'status-archived' : '';
-
-    issuesHtml += `
-      <div class="issue-card priority-${priority.toLowerCase()} ${archivedClass}">
-        <div class="card-header">
-          <h3 class="card-title">${issue.title || 'No Title'}</h3>
-          <div class="card-header-right">
-            <span class="priority-tag priority-${priority.toLowerCase()}">${priority}</span>
-            ${statusDropdown}
-            ${status !== 'Archived' ? cardMenu : ''}
-          </div>
+      <div class="card-body clickable" data-id="${issueId}">
+        <p>${issue.description || 'No description.'}</p>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-info">
+            <span class="card-info-text"><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'} | <strong>Category:</strong> ${issue.category || 'N/A'}</span>
+            <span class="card-timestamp">${timestamp}</span>
         </div>
-        <div class="card-body clickable" data-id="${issueId}">
-          <p>${issue.description || 'No description.'}</p>
-        </div>
-        <div class="card-footer">
-          <div class="card-footer-info">
-              <span class="card-info-text"><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'} | <strong>Category:</strong> ${issue.category || 'N/A'}</span>
-              <span class="card-timestamp">${timestamp}</span>
-          </div>
-          <div class="card-footer-actions">
-              <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
-          </div>
+        <div class="card-footer-actions">
+            <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
         </div>
       </div>
-    `;
-  });
-  issuesContainer.innerHTML = issuesHtml;
+    </div>
+  `;
 }
 
 /**
@@ -355,6 +483,12 @@ function setupEventListeners() {
       showArchiveConfirm(archiveButton.dataset.id);
       return;
     }
+    const unarchiveButton = e.target.closest('.unarchive-btn');
+    if (unarchiveButton) {
+    // For now, unarchiving will set the status back to 'New'
+      handleStatusChange(unarchiveButton.dataset.id, 'New');
+      return;
+}
   });
 
   issuesContainer.addEventListener('change', (e) => {
@@ -410,6 +544,24 @@ function setupEventListeners() {
   });
 
   logoutBtn.addEventListener('click', handleLogout);
+    archivedIssuesContainer.addEventListener('click', (e) => {
+      const detailsTrigger = e.target.closest('.details-btn, .card-body.clickable');
+      if (detailsTrigger) {
+        handleViewDetails(detailsTrigger.dataset.id);
+        return;
+      }
+      const toggleButton = e.target.closest('.card-actions-toggle');
+      if (toggleButton) {
+        const dropdown = toggleButton.nextElementSibling;
+        dropdown.classList.toggle('visible');
+        return;
+      }
+      const unarchiveButton = e.target.closest('.unarchive-btn');
+      if (unarchiveButton) {
+        handleStatusChange(unarchiveButton.dataset.id, 'New');
+        return;
+      }
+    });
   archivedHeader.addEventListener('click', () => {
   const isExpanded = archivedSection.classList.toggle('expanded');
   archivedHeader.querySelector('.archived-toggle').textContent = isExpanded ? 'Hide' : 'Show';
