@@ -39,6 +39,8 @@ const logoutBtn = document.getElementById('logout-btn');
 const archivedSection = document.getElementById('archived-section');
 const archivedHeader = document.getElementById('archived-header');
 const pinnedIssuesContainer = document.getElementById('pinned-issues-container');
+const imageViewerModal = document.getElementById('image-viewer-modal');
+const fullSizeScreenshot = document.getElementById('full-size-screenshot');
 
 // =================================================================
 //  CONSTANTS & ICONS
@@ -244,6 +246,17 @@ async function handleFormSubmit(e) {
 function populateAndShowDetailsModal(issueId, issue) {
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
+  // --- Create screenshots HTML block (if screenshots exist) ---
+  let screenshotsHtml = '';
+  if (issue.screenshots && issue.screenshots.length > 0) {
+    screenshotsHtml = `
+      <h4>Screenshots</h4>
+      <div class="screenshots-container">
+        ${issue.screenshots.map(url => `<img src="${url}" alt="Screenshot thumbnail" class="screenshot-thumbnail">`).join('')}
+      </div>
+    `;
+  }
+
   let detailsHtml = `
     <div class="details-grid">
       <div><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'}</div>
@@ -256,6 +269,8 @@ function populateAndShowDetailsModal(issueId, issue) {
     <h4>Description</h4>
     <p class="details-description">${issue.description || 'No description provided.'}</p>
     
+    ${screenshotsHtml}
+
     <div class="comments-section">
       <h4>Comments</h4>
       <div id="comments-list"><p class="placeholder-text-small">Loading comments...</p></div>
@@ -283,9 +298,21 @@ function populateAndShowDetailsModal(issueId, issue) {
     }
   });
 
+  // --- Add event listener for opening the image viewer ---
+  const screenshotsContainer = detailsContent.querySelector('.screenshots-container');
+  if (screenshotsContainer) {
+    screenshotsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('screenshot-thumbnail')) {
+        fullSizeScreenshot.src = e.target.src; // Set the full-size image source
+        imageViewerModal.style.display = 'block'; // Show the viewer modal
+      }
+    });
+  }
+
   listenForComments(issueId);
   detailsModal.style.display = 'block';
 }
+
 
 /**
  * Fetches a single issue's data from Firestore and opens the details modal.
@@ -452,11 +479,16 @@ if (issue.isPinned) {
         </div>
         <div class="card-footer-actions">
     ${issue.commentCount > 0 ? `
-      <div class="comment-count" title="${issue.commentCount} comments">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/></svg>
-        <span>${issue.commentCount}</span>
-      </div>
-    ` : ''}
+  <div class="comment-count" title="${issue.commentCount} comments">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/></svg>
+    <span>${issue.commentCount}</span>
+  </div>
+` : ''}
+${(issue.screenshots && issue.screenshots.length > 0) ? `
+  <div class="attachment-icon" title="This issue has attachments">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/></svg>
+  </div>
+` : ''}
     <button class="button-secondary button-small details-btn" data-id="${issueId}">View Details</button>
 </div>
       </div>
