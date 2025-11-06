@@ -299,6 +299,10 @@ function populateAndShowDetailsModal(issueId, issue) {
           <label for="comment-text">Comment</label>
           <textarea id="comment-text" name="commentText" rows="3" required></textarea>
         </div>
+        <div class="form-group">
+          <label for="comment-screenshot">Attach Screenshot (Optional)</label>
+          <input type="file" id="comment-screenshot" name="commentScreenshot" accept="image/*">
+        </div>
         <div class="form-actions">
           <button type="submit" id="submit-comment-btn" class="button-primary">Submit Comment</button>
         </div>
@@ -358,55 +362,86 @@ function listenForComments(issueId) {
     snapshot.forEach(doc => {
       const comment = doc.data();
       commentsHtml += `
-        <div class="comment">
-          <div class="comment-header">
-            <strong>${comment.commenterName}</strong>
-            <span>${comment.createdAt ? new Date(comment.createdAt.toDate()).toLocaleString() : ''}</span>
+    <div class="comment">
+      <div class="comment-header">
+        <strong>${comment.commenterName}</strong>
+        <span>${comment.createdAt ? new Date(comment.createdAt.toDate()).toLocaleString() : ''}</span>
+      </div>
+      <div class="comment-body">
+        <p>${comment.text}</p>
+        ${comment.screenshot ? `
+          <div class="comment-screenshot">
+            <img src="${comment.screenshot}" alt="Comment screenshot" class="comment-screenshot-img">
           </div>
-          <div class="comment-body">
-            <p>${comment.text}</p>
-          </div>
-        </div>
-      `;
-    });
+        ` : ''}
+      </div>
+    </div>
+  `;
     commentsList.innerHTML = commentsHtml;
   }, (error) => {
     console.error("Error fetching comments:", error);
     commentsList.innerHTML = '<p class="placeholder-text-small error">Could not load comments.</p>';
   });
+  })
 }
 
-/**
- * Adds a new comment document to Firestore.
- */
 async function handleAddComment(issueId, text) {
   const submitBtn = document.getElementById('submit-comment-btn');
+  // Correctly get the single file object
+  const screenshotFile = document.getElementById('comment-screenshot').files[0]; 
+  
+  // --- VALIDATION ---
+  if (screenshotFile) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(screenshotFile.type)) {
+      alert('Invalid file type. Please upload a JPG, PNG, GIF, or WEBP image.');
+      return;
+    }
+    const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
+    if (screenshotFile.size > maxSizeInBytes) {
+      alert('File is too large. The maximum size is 5MB.');
+      return;
+    }
+  } // <-- This was likely the missing brace
+
   submitBtn.disabled = true;
 
-  // Define references to the issue document and the comments subcollection
-  const issueDocRef = doc(db, 'issues', issueId);
-  const commentsCollectionRef = collection(issueDocRef, 'comments');
-
   try {
-    // Add the new comment document
-    await addDoc(commentsCollectionRef, {
+    let screenshotUrl = null;
+    // --- UPLOAD ---
+    if (screenshotFile) {
+      submitBtn.textContent = 'Uploading Screenshot...';
+      screenshotUrl = await uploadScreenshotToCloudinary(screenshotFile);
+    }
+
+    submitBtn.textContent = 'Submitting Comment...';
+    
+    // --- CREATE FIRESTORE DOCUMENT ---
+    const issueDocRef = doc(db, 'issues', issueId);
+    const commentsCollectionRef = collection(issueDocRef, 'comments');
+    
+    const newComment = {
       text: text,
       commenterName: loggedInPerson.name,
       createdAt: serverTimestamp()
-    });
+    };
 
-    // Atomically increment the commentCount on the parent issue document
-    await updateDoc(issueDocRef, {
-      commentCount: increment(1)
-    });
+    if (screenshotUrl) {
+      newComment.screenshot = screenshotUrl; // Add screenshot URL if it exists
+    }
+
+    await addDoc(commentsCollectionRef, newComment);
+    await updateDoc(issueDocRef, { commentCount: increment(1) });
 
   } catch (error) {
     console.error("Error adding comment: ", error);
-    alert("Failed to add comment.");
+    alert(error.message || "Failed to add comment.");
   } finally {
     submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Comment';
   }
 }
+
 
 // --- IMAGE VIEWER FUNCTIONS ---
 
@@ -849,14 +884,23 @@ resetFiltersBtn.addEventListener('click', () => {
   });
 
   // --- Listener for Thumbnail Clicks (Event Delegation) ---
-  detailsModal.addEventListener('click', (e) => {
-    if (e.target.classList.contains('screenshot-thumbnail')) {
-      if (currentOpenIssue && currentOpenIssue.screenshots) {
-        const startIndex = parseInt(e.target.dataset.index, 10);
-        openImageViewer(currentOpenIssue.screenshots, startIndex);
-      }
+// --- Listener for Thumbnail Clicks (Event Delegation) ---
+detailsModal.addEventListener('click', (e) => {
+  // Handle clicks on issue screenshots
+  if (e.target.classList.contains('screenshot-thumbnail')) {
+    if (currentOpenIssue && currentOpenIssue.screenshots) {
+      const startIndex = parseInt(e.target.dataset.index, 10);
+      openImageViewer(currentOpenIssue.screenshots, startIndex);
     }
-  });
+  }
+  
+  // NEW: Handle clicks on comment screenshots
+  if (e.target.classList.contains('comment-screenshot-img')) {
+    const screenshotUrl = e.target.src;
+    // Open the viewer with just this one image
+    openImageViewer([screenshotUrl], 0);
+  }
+});
 }
 
 /**

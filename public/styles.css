@@ -304,8 +304,23 @@ textarea { resize: vertical; min-height: 100px; }
 .comment { background-color: var(--card-background); border-radius: 8px; padding: 1rem; border: 1px solid var(--border-color); }
 .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; color: var(--subtle-text); font-size: 0.9rem; }
 .comment-body p { white-space: pre-wrap; word-wrap: break-word; color: var(--text-color); }
-.comment-attachment { margin-top: 0.5rem; }
-.comment-attachment img { max-width: 150px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-color); }
+.comment-screenshot {
+  margin-top: 0.75rem;
+}
+.comment-screenshot-img { 
+  max-width: 200px; 
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 6px; 
+  cursor: pointer; 
+  border: 2px solid var(--border-color);
+  transition: all 0.2s ease;
+  display: block;
+}
+.comment-screenshot-img:hover {
+  border-color: var(--primary-color);
+  transform: scale(1.02);
+}
 #add-comment-form { margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
 
 /* Archived Section */
