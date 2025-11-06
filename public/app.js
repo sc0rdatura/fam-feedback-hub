@@ -151,6 +151,41 @@ async function uploadScreenshotToCloudinary(file) {
   const data = await response.json();
   return data.secure_url; // This is the public URL of the uploaded image
 }
+/**
+ * Uploads multiple files to Cloudinary sequentially.
+ * @param {FileList} files The FileList object from an input.
+ * @param {Function} progressCallback Optional callback for progress updates.
+ * @returns {Promise<Object>} Object with successful URLs and failed count.
+ */
+async function uploadMultipleScreenshots(files, progressCallback) {
+  const maxFiles = 5;
+  const filesToUpload = Array.from(files).slice(0, maxFiles); // Limit to 5
+  const successfulUploads = [];
+  const failedUploads = [];
+  
+  for (let i = 0; i < filesToUpload.length; i++) {
+    const file = filesToUpload[i];
+    
+    // Call progress callback if provided
+    if (progressCallback) {
+      progressCallback(i + 1, filesToUpload.length);
+    }
+    
+    try {
+      const url = await uploadScreenshotToCloudinary(file);
+      successfulUploads.push(url);
+    } catch (error) {
+      console.error(`Failed to upload file ${i + 1}:`, error);
+      failedUploads.push(file.name);
+    }
+  }
+  
+  return {
+    urls: successfulUploads,
+    failedCount: failedUploads.length,
+    failedNames: failedUploads
+  };
+}
 
 /**
  * Fetches categories from Firestore and populates the dropdowns.
@@ -183,56 +218,83 @@ async function handleFormSubmit(e) {
     return;
   }
 
-  // Get the file from the form input
-  const screenshotFile = issueForm.screenshot.files[0];
+// Get all files from the form input
+const screenshotFile = issueForm.screenshot.files; // This is now a FileList
 
-  // --- VALIDATION ---
-  if (screenshotFile) {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(screenshotFile.type)) {
-      alert('Invalid file type. Please upload a JPG, PNG, GIF, or WEBP image.');
-      return; // Stop the submission
-    }
-
-    const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
-    if (screenshotFile.size > maxSizeInBytes) {
-      alert('File is too large. The maximum size is 5MB.');
-      return; // Stop the submission
-    }
+// --- VALIDATION ---
+if (screenshotFile && screenshotFile.length > 0) {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+  const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
+  const maxFiles = 5;
+  
+  // Check file count
+  if (screenshotFile.length > maxFiles) {
+    alert(`You can only upload up to ${maxFiles} screenshots. Please select fewer files.`);
+    return;
   }
   
-  submitBtn.disabled = true;
-
-  try {
-    let screenshotUrl = null;
-    // --- UPLOAD ---
-    if (screenshotFile) {
-      submitBtn.textContent = 'Uploading Screenshot...';
-      screenshotUrl = await uploadScreenshotToCloudinary(screenshotFile);
-    }
-
-    submitBtn.textContent = 'Saving Issue...';
+  // Validate each file
+  for (let i = 0; i < screenshotFile.length; i++) {
+    const file = screenshotFile[i];
     
-    // --- CREATE FIRESTORE DOCUMENT ---
-    const formData = new FormData(issueForm);
-    const newIssue = {
-      title: formData.get('title'),
-      category: formData.get('category'),
-      type: formData.get('type'),
-      priority: formData.get('priority'),
-      description: formData.get('description'),
-      submitterId: firebaseUser.uid,
-      submitterName: loggedInPerson.name,
-      status: "New",
-      isPinned: false,
-      commentCount: 0, // Initialize comment count
-      createdAt: serverTimestamp()
-    };
-
-    // Add the screenshot URL to the issue object if it exists
-    if (screenshotUrl) {
-      newIssue.screenshots = [screenshotUrl]; // Store in an array for future-proofing
+    if (!allowedTypes.includes(file.type)) {
+      alert(`Invalid file type for "${file.name}". Please upload only JPG, PNG, GIF, or WEBP images.`);
+      return;
     }
+    
+    if (file.size > maxSizeInBytes) {
+      alert(`File "${file.name}" is too large. The maximum size is 5MB per file.`);
+      return;
+    }
+  }
+}
+  
+submitBtn.disabled = true;
+
+try {
+  let screenshotUrls = [];
+  
+  // --- UPLOAD MULTIPLE FILES ---
+  if (screenshotFile && screenshotFile.length > 0) {
+    // screenshotFile is actually a FileList when multiple attribute is set
+    const uploadResult = await uploadMultipleScreenshots(
+      screenshotFile,
+      (current, total) => {
+        submitBtn.textContent = `Uploading screenshots... (${current}/${total})`;
+      }
+    );
+    
+    screenshotUrls = uploadResult.urls;
+    
+    // Inform user if some uploads failed
+    if (uploadResult.failedCount > 0) {
+      const successCount = uploadResult.urls.length;
+      alert(`${successCount} screenshot(s) uploaded successfully. ${uploadResult.failedCount} failed. You can add the failed images as comments later.`);
+    }
+  }
+
+  submitBtn.textContent = 'Saving Issue...';
+  
+  // --- CREATE FIRESTORE DOCUMENT ---
+  const formData = new FormData(issueForm);
+  const newIssue = {
+    title: formData.get('title'),
+    category: formData.get('category'),
+    type: formData.get('type'),
+    priority: formData.get('priority'),
+    description: formData.get('description'),
+    submitterId: firebaseUser.uid,
+    submitterName: loggedInPerson.name,
+    status: "New",
+    isPinned: false,
+    commentCount: 0,
+    createdAt: serverTimestamp()
+  };
+
+  // Add screenshot URLs if any were successfully uploaded
+  if (screenshotUrls.length > 0) {
+    newIssue.screenshots = screenshotUrls;
+  }
 
     await addDoc(collection(db, "issues"), newIssue);
 
@@ -357,8 +419,8 @@ function populateAndShowDetailsModal(issueId, issue) {
           <textarea id="comment-text" name="commentText" rows="3" required></textarea>
         </div>
         <div class="form-group">
-          <label for="comment-screenshot">Attach Screenshot (Optional)</label>
-          <input type="file" id="comment-screenshot" name="commentScreenshot" accept="image/*">
+          <label for="comment-screenshot">Attach Screenshots (Optional, up to 5)</label>
+          <input type="file" id="comment-screenshot" name="commentScreenshot" accept="image/*" multiple>
         </div>
         <div class="form-actions">
           <button type="submit" id="submit-comment-btn" class="button-primary">Submit Comment</button>
@@ -420,22 +482,28 @@ function listenForComments(issueId) {
     let commentsHtml = '';
     snapshot.forEach(doc => {
       const comment = doc.data();
-      commentsHtml += `
-    <div class="comment">
-      <div class="comment-header">
-        <strong>${comment.commenterName}</strong>
-        <span>${comment.createdAt ? new Date(comment.createdAt.toDate()).toLocaleString() : ''}</span>
-      </div>
-      <div class="comment-body">
-        <p>${comment.text}</p>
-        ${comment.screenshot ? `
-          <div class="comment-screenshot">
-            <img src="${comment.screenshot}" alt="Comment screenshot" class="comment-screenshot-img">
-          </div>
-        ` : ''}
-      </div>
+commentsHtml += `
+  <div class="comment">
+    <div class="comment-header">
+      <strong>${comment.commenterName}</strong>
+      <span>${comment.createdAt ? new Date(comment.createdAt.toDate()).toLocaleString() : ''}</span>
     </div>
-  `;
+    <div class="comment-body">
+      <p>${comment.text}</p>
+      ${comment.screenshots && comment.screenshots.length > 0 ? `
+        <div class="comment-screenshots-grid">
+          ${comment.screenshots.map((url, index) => `
+            <img src="${url}" alt="Comment screenshot ${index + 1}" class="comment-screenshot-img" data-comment-images='${JSON.stringify(comment.screenshots)}' data-index="${index}">
+          `).join('')}
+        </div>
+      ` : comment.screenshot ? `
+        <div class="comment-screenshot">
+          <img src="${comment.screenshot}" alt="Comment screenshot" class="comment-screenshot-img">
+        </div>
+      ` : ''}
+    </div>
+  </div>
+`;
     commentsList.innerHTML = commentsHtml;
   }, (error) => {
     console.error("Error fetching comments:", error);
@@ -446,31 +514,57 @@ function listenForComments(issueId) {
 
 async function handleAddComment(issueId, text) {
   const submitBtn = document.getElementById('submit-comment-btn');
-  // Correctly get the single file object
-  const screenshotFile = document.getElementById('comment-screenshot').files[0]; 
+  const screenshotFiles = document.getElementById('comment-screenshot').files; // Now a FileList
   
   // --- VALIDATION ---
-  if (screenshotFile) {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(screenshotFile.type)) {
-      alert('Invalid file type. Please upload a JPG, PNG, GIF, or WEBP image.');
-      return;
-    }
+  if (screenshotFiles && screenshotFiles.length > 0) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
     const maxSizeInBytes = 5 * 1024 * 1024; // 5MB
-    if (screenshotFile.size > maxSizeInBytes) {
-      alert('File is too large. The maximum size is 5MB.');
+    const maxFiles = 5;
+    
+    // Check file count
+    if (screenshotFiles.length > maxFiles) {
+      alert(`You can only upload up to ${maxFiles} screenshots. Please select fewer files.`);
       return;
     }
-  } // <-- This was likely the missing brace
+    
+    // Validate each file
+    for (let i = 0; i < screenshotFiles.length; i++) {
+      const file = screenshotFiles[i];
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert(`Invalid file type for "${file.name}". Please upload only JPG, PNG, GIF, or WEBP images.`);
+        return;
+      }
+      
+      if (file.size > maxSizeInBytes) {
+        alert(`File "${file.name}" is too large. The maximum size is 5MB per file.`);
+        return;
+      }
+    }
+  }
 
   submitBtn.disabled = true;
 
   try {
-    let screenshotUrl = null;
-    // --- UPLOAD ---
-    if (screenshotFile) {
-      submitBtn.textContent = 'Uploading Screenshot...';
-      screenshotUrl = await uploadScreenshotToCloudinary(screenshotFile);
+    let screenshotUrls = [];
+    
+    // --- UPLOAD MULTIPLE FILES ---
+    if (screenshotFiles && screenshotFiles.length > 0) {
+      const uploadResult = await uploadMultipleScreenshots(
+        screenshotFiles,
+        (current, total) => {
+          submitBtn.textContent = `Uploading screenshots... (${current}/${total})`;
+        }
+      );
+      
+      screenshotUrls = uploadResult.urls;
+      
+      // Inform user if some uploads failed
+      if (uploadResult.failedCount > 0) {
+        const successCount = uploadResult.urls.length;
+        alert(`${successCount} screenshot(s) uploaded successfully. ${uploadResult.failedCount} failed.`);
+      }
     }
 
     submitBtn.textContent = 'Submitting Comment...';
@@ -485,8 +579,9 @@ async function handleAddComment(issueId, text) {
       createdAt: serverTimestamp()
     };
 
-    if (screenshotUrl) {
-      newComment.screenshot = screenshotUrl; // Add screenshot URL if it exists
+    // Add screenshot URLs if any were successfully uploaded
+    if (screenshotUrls.length > 0) {
+      newComment.screenshots = screenshotUrls; // Note: Changed to array
     }
 
     await addDoc(commentsCollectionRef, newComment);
@@ -1071,12 +1166,22 @@ detailsModal.addEventListener('click', (e) => {
     return;
   }
   
-  // Handle clicks on comment screenshots
-  if (e.target.classList.contains('comment-screenshot-img')) {
+// Handle clicks on comment screenshots
+if (e.target.classList.contains('comment-screenshot-img')) {
+  // Check if this is part of a multi-image comment
+  const commentImages = e.target.dataset.commentImages;
+  if (commentImages) {
+    // Multiple images - open viewer with all of them
+    const images = JSON.parse(commentImages);
+    const startIndex = parseInt(e.target.dataset.index, 10);
+    openImageViewer(images, startIndex);
+  } else {
+    // Single image (old format) - open viewer with just this one
     const screenshotUrl = e.target.src;
     openImageViewer([screenshotUrl], 0);
-    return;
   }
+  return;
+}
   
   // NEW: Handle edit button click
   if (e.target.id === 'edit-details-btn') {
