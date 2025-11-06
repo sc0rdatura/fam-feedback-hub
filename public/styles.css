@@ -79,7 +79,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
 
 /* Main App Styling */
 .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-.app-header { text-align: center; margin-bottom: 2rem; position: relative; }
+.app-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative; /* Crucial for positioning the child element */
+}
 .app-header .header-logo { max-height: 80px; margin-bottom: 1rem; }
 .app-header h1 { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 0.5rem; }
 .app-header p { color: var(--subtle-text); font-size: 1.1rem; }
@@ -247,7 +251,14 @@ select option { color: var(--text-color); }
 .modal-content { background-color: #fff; margin: 5% auto; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slide-down 0.3s ease-out; }
 .modal-lg { max-width: 800px; }
 #details-modal-body { max-height: 75vh; overflow-y: auto; }
-.modal-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between; /* Pushes title and actions apart */
+  align-items: center;
+  gap: 1rem; /* Adds space between elements */
+}
 .modal-header h2 { color: var(--primary-color); font-size: 1.5rem; }
 .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; transition: color 0.2s; }
 .close-button:hover { color: #333; }
@@ -272,6 +283,9 @@ textarea { resize: vertical; min-height: 100px; }
 
 /* Details Modal Specifics */
 .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.75rem 1.5rem; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+#details-title {
+    margin-right: auto; /* Pushes everything after it to the right */
+}
 .details-description { white-space: pre-wrap; word-wrap: break-word; margin-bottom: 1.5rem; background-color: #f9f9f9; padding: 1rem; border-radius: 8px; }
 .screenshots-container {
       display: flex;
@@ -349,6 +363,26 @@ textarea { resize: vertical; min-height: 100px; }
   #issues-container, .archived-issues-content { grid-template-columns: 1fr; }
   .filter-sort-controls, .filter-group, .sort-group { flex-direction: column; align-items: stretch; }
   .filter-sort-header { display: none; }
+  .app-header {
+  /* On mobile, become a flex container that stacks items */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.header-content {
+  /* Ensure the main title/logo comes first */
+  order: 1;
+}
+
+.user-display-container {
+  /* THIS IS THE KEY FIX: */
+  position: static; /* Puts the element back in the normal document flow */
+  order: 2; /* Ensure the user display comes second */
+  width: 100%;
+  justify-content: center; /* Center the text/icon inside the container */
+}
 }
 /* --- Phase 2: Screenshot Display & Viewer (Corrected) --- */
 
@@ -499,4 +533,40 @@ textarea { resize: vertical; min-height: 100px; }
 }
 .next-btn {
   right: 1rem;
+}
+/* --- Phase 4: In-Modal Editing --- */
+
+/* Modal header actions group */
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Editable fields in details grid */
+.editable-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.editable-field strong {
+  font-size: 0.9rem;
+  color: var(--subtle-text);
+}
+
+.field-edit {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background-color: white;
+  width: 100%;
+  font-family: inherit;
+}
+
+.field-edit:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }

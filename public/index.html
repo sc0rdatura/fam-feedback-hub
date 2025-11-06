@@ -24,19 +24,19 @@
   <!-- Main App Wrapper -->
   <div id="main-app-container" style="display: none;">
     <div class="container">
-      <header class="app-header">
-        <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
-        <h1>Optimiser Feedback Portal</h1>
-        <p>Log issues, track progress, and find existing feedback.</p>
-      
-        <!-- User Display and Logout -->
-        <div id="user-display" class="user-display-container">
-          <span id="user-name-display"></span>
-          <a href="#" id="logout-btn" class="logout-icon" title="Switch User">
-            <!-- SVG icon will be inserted here by JavaScript -->
-          </a>
-        </div>
-      </header>
+<header class="app-header">
+      <div class="header-content">
+          <img src="https://drive.google.com/thumbnail?id=1060FAX93qpj679HV8h3kEkGJxAR8u2NS" alt="Company Logo" class="header-logo">
+          <h1>Optimiser Feedback Portal</h1>
+          <p>Log issues, track progress, and find existing feedback.</p>
+      </div>
+      <div id="user-display" class="user-display-container">
+        <span id="user-name-display"></span>
+        <a href="#" id="logout-btn" class="logout-icon" title="Switch User">
+          <!-- SVG icon will be inserted here by JavaScript -->
+        </a>
+      </div>
+    </header>
 
       <div class="controls">
         <input type="search" id="search-bar" placeholder="🔎 Search by title, description, or category...">
@@ -100,9 +100,12 @@
     <div id="details-modal" class="modal">
       <div class="modal-content modal-lg">
         <div class="modal-header">
-          <h2 id="details-title">Issue Details</h2>
-          <span class="close-button">&times;</span>
-        </div>
+  <h2 id="details-title">Issue Details</h2>
+  <div id="modal-header-actions" class="modal-header-actions">
+    <!-- Edit buttons will be inserted here dynamically -->
+  </div>
+  <span class="close-button">&times;</span>
+</div>
         <div class="modal-body" id="details-modal-body">
           <div id="details-content"></div>
         </div>

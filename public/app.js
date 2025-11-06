@@ -68,6 +68,8 @@ let allIssues = [];
 let currentImages = [];
 let currentImageIndex = 0;
 let currentOpenIssue = null;
+let currentIssueId = null;
+let isEditMode = false;
 
 // =================================================================
 //  CORE APPLICATION LOGIC
@@ -252,9 +254,21 @@ async function handleFormSubmit(e) {
  * Populates the details modal with issue data and comments, then displays it.
  */
 function populateAndShowDetailsModal(issueId, issue) {
-  currentOpenIssue = issue; // Set the currently open issue in our state
+  currentOpenIssue = issue;
+  currentIssueId = issueId;
+  isEditMode = false;
+  
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
+  // Generate edit buttons
+  const actionsContainer = document.getElementById('modal-header-actions');
+  actionsContainer.innerHTML = `
+    <button id="edit-details-btn" class="button-secondary button-small">Edit Details</button>
+    <button id="save-details-btn" class="button-primary button-small" style="display: none;">Save Changes</button>
+    <button id="cancel-edit-btn" class="button-secondary button-small" style="display: none;">Cancel</button>
+  `;
+
+  // Build screenshots section
   let screenshotsHtml = '';
   if (issue.screenshots && issue.screenshots.length > 0) {
     screenshotsHtml = `
@@ -276,14 +290,57 @@ function populateAndShowDetailsModal(issueId, issue) {
     `;
   }
 
+  // Build editable details grid
   let detailsHtml = `
     <div class="details-grid">
+      <!-- Non-editable fields -->
       <div><strong>Submitter:</strong> ${issue.submitterName || 'Unknown'}</div>
-      <div><strong>Category:</strong> ${issue.category || 'N/A'}</div>
-      <div><strong>Priority:</strong> ${issue.priority || 'Low'}</div>
       <div><strong>Date:</strong> ${issue.createdAt ? new Date(issue.createdAt.toDate()).toLocaleString() : 'N/A'}</div>
-      <div><strong>Status:</strong> ${issue.status || 'N/A'}</div>
-      <div><strong>Type:</strong> ${issue.type || 'N/A'}</div>
+      
+      <!-- Editable: Category -->
+      <div class="editable-field">
+        <strong>Category:</strong> 
+        <span class="field-view">${issue.category || 'N/A'}</span>
+        <select class="field-edit" data-field="category" style="display: none;">
+          <!-- Options populated when entering edit mode -->
+        </select>
+      </div>
+      
+      <!-- Editable: Priority -->
+      <div class="editable-field">
+        <strong>Priority:</strong> 
+        <span class="field-view">${issue.priority || 'Low'}</span>
+        <select class="field-edit" data-field="priority" style="display: none;">
+          <option value="Low" ${issue.priority === 'Low' ? 'selected' : ''}>Low</option>
+          <option value="Medium" ${issue.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+          <option value="High" ${issue.priority === 'High' ? 'selected' : ''}>High</option>
+          <option value="Critical" ${issue.priority === 'Critical' ? 'selected' : ''}>Critical</option>
+        </select>
+      </div>
+      
+      <!-- Editable: Status -->
+      <div class="editable-field">
+        <strong>Status:</strong> 
+        <span class="field-view">${issue.status || 'N/A'}</span>
+        <select class="field-edit" data-field="status" style="display: none;">
+          <option value="New" ${issue.status === 'New' ? 'selected' : ''}>New</option>
+          <option value="In Progress" ${issue.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+          <option value="Resolved" ${issue.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+        </select>
+      </div>
+      
+      <!-- Editable: Type -->
+      <div class="editable-field">
+        <strong>Type:</strong> 
+        <span class="field-view">${issue.type || 'N/A'}</span>
+        <select class="field-edit" data-field="type" style="display: none;">
+          <option value="Bug" ${issue.type === 'Bug' ? 'selected' : ''}>Bug</option>
+          <option value="Feature Request" ${issue.type === 'Feature Request' ? 'selected' : ''}>Feature Request</option>
+          <option value="UI/UX Suggestion" ${issue.type === 'UI/UX Suggestion' ? 'selected' : ''}>UI/UX Suggestion</option>
+          <option value="Question" ${issue.type === 'Question' ? 'selected' : ''}>Question</option>
+          <option value="Other" ${issue.type === 'Other' ? 'selected' : ''}>Other</option>
+        </select>
+      </div>
     </div>
     <h4>Description</h4>
     <p class="details-description">${issue.description || 'No description provided.'}</p>
@@ -309,8 +366,10 @@ function populateAndShowDetailsModal(issueId, issue) {
       </form>
     </div>
   `;
+  
   detailsContent.innerHTML = detailsHtml;
 
+  // Set up comment form submission
   const addCommentForm = document.getElementById('add-comment-form');
   addCommentForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -513,8 +572,125 @@ async function downloadCurrentImage() {
   }
 }
 function closeDetailsModal() {
+  // Check if in edit mode
+  if (isEditMode) {
+    const confirmClose = confirm('You have unsaved changes. Are you sure you want to close?');
+    if (!confirmClose) return;
+  }
+  
   detailsModal.style.display = 'none';
-  currentOpenIssue = null; // This is the crucial state cleanup
+  currentOpenIssue = null;
+  currentIssueId = null;
+  isEditMode = false;
+  
+  // Clean up edit buttons
+  const actionsContainer = document.getElementById('modal-header-actions');
+  if (actionsContainer) actionsContainer.innerHTML = '';
+}
+
+/**
+ * Toggles between view and edit mode in the details modal
+ */
+function toggleEditMode(enable) {
+  isEditMode = enable;
+  
+  const editBtn = document.getElementById('edit-details-btn');
+  const saveBtn = document.getElementById('save-details-btn');
+  const cancelBtn = document.getElementById('cancel-edit-btn');
+  
+  const viewFields = document.querySelectorAll('.field-view');
+  const editFields = document.querySelectorAll('.field-edit');
+  
+  if (enable) {
+    // Enter edit mode
+    if (editBtn) editBtn.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'inline-block';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    
+    viewFields.forEach(field => field.style.display = 'none');
+    editFields.forEach(field => field.style.display = 'inline-block');
+    
+    // Populate category dropdown
+    populateCategoryEditDropdown(currentOpenIssue.category);
+  } else {
+    // Exit edit mode
+    if (editBtn) editBtn.style.display = 'inline-block';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    
+    viewFields.forEach(field => field.style.display = 'inline');
+    editFields.forEach(field => field.style.display = 'none');
+  }
+}
+
+/**
+ * Populates the category dropdown in edit mode
+ */
+async function populateCategoryEditDropdown(currentCategory) {
+  const categorySelect = document.querySelector('[data-field="category"]');
+  if (!categorySelect) return;
+  
+  try {
+    const querySnapshot = await getDocs(collection(db, 'categories'));
+    let optionsHtml = '';
+    querySnapshot.forEach(doc => {
+      const categoryName = doc.data().name;
+      const selected = categoryName === currentCategory ? 'selected' : '';
+      optionsHtml += `<option value="${categoryName}" ${selected}>${categoryName}</option>`;
+    });
+    categorySelect.innerHTML = optionsHtml;
+  } catch (error) {
+    console.error('Error loading categories:', error);
+  }
+}
+
+/**
+ * Saves changes made in edit mode to Firestore
+ */
+async function saveDetailsChanges() {
+  if (!currentIssueId) return;
+  
+  const saveBtn = document.getElementById('save-details-btn');
+  if (!saveBtn) return;
+  
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  
+  try {
+    // Collect new values from edit fields
+    const updates = {};
+    document.querySelectorAll('.field-edit').forEach(field => {
+      const fieldName = field.dataset.field;
+      updates[fieldName] = field.value;
+    });
+    
+    // Update Firestore
+    const docRef = doc(db, 'issues', currentIssueId);
+    await updateDoc(docRef, updates);
+    
+    // Optimistic UI update: update the currentOpenIssue object
+    Object.assign(currentOpenIssue, updates);
+    
+    // Update view fields to show new values
+    document.querySelectorAll('.field-edit').forEach(field => {
+      const fieldName = field.dataset.field;
+      const viewField = field.previousElementSibling;
+      if (viewField && viewField.classList.contains('field-view')) {
+        viewField.textContent = updates[fieldName];
+      }
+    });
+    
+    // Exit edit mode
+    toggleEditMode(false);
+    
+    console.log('Details updated successfully!');
+  } catch (error) {
+    console.error('Error updating details:', error);
+    alert('Failed to save changes. Please try again.');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Changes';
+  }
 }
 
 /**
@@ -892,13 +1068,40 @@ detailsModal.addEventListener('click', (e) => {
       const startIndex = parseInt(e.target.dataset.index, 10);
       openImageViewer(currentOpenIssue.screenshots, startIndex);
     }
+    return;
   }
   
-  // NEW: Handle clicks on comment screenshots
+  // Handle clicks on comment screenshots
   if (e.target.classList.contains('comment-screenshot-img')) {
     const screenshotUrl = e.target.src;
-    // Open the viewer with just this one image
     openImageViewer([screenshotUrl], 0);
+    return;
+  }
+  
+  // NEW: Handle edit button click
+  if (e.target.id === 'edit-details-btn') {
+    toggleEditMode(true);
+    return;
+  }
+  
+  // NEW: Handle save button click
+  if (e.target.id === 'save-details-btn') {
+    saveDetailsChanges();
+    return;
+  }
+  
+  // NEW: Handle cancel button click
+  if (e.target.id === 'cancel-edit-btn') {
+    // Revert any changes by restoring original values
+    document.querySelectorAll('.field-edit').forEach(field => {
+      const fieldName = field.dataset.field;
+      // Find the corresponding option and select it
+      const options = Array.from(field.options);
+      const correctOption = options.find(opt => opt.value === currentOpenIssue[fieldName]);
+      if (correctOption) field.value = correctOption.value;
+    });
+    toggleEditMode(false);
+    return;
   }
 });
 }
