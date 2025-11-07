@@ -328,22 +328,13 @@ function populateAndShowDetailsModal(issueId, issue) {
   
   detailsTitle.textContent = `Issue: ${issue.title || 'No Title'}`;
 
-// Generate action buttons (vote + edit)
-const actionsContainer = document.getElementById('modal-header-actions');
-const hasVoted = issue.voterUids && issue.voterUids.includes(firebaseUser?.uid);
-const voteCount = issue.voteCount || 0;
-
-actionsContainer.innerHTML = `
-  <button id="modal-vote-btn" class="vote-btn-modal ${hasVoted ? 'voted' : ''}" 
-          data-id="${issueId}"
-          title="${hasVoted ? 'Remove vote' : 'Vote for this'}">
-    ${voteIconSVG}
-    <span class="vote-count-modal">${voteCount}</span>
-  </button>
-  <button id="edit-details-btn" class="button-secondary button-small">Edit Details</button>
-  <button id="save-details-btn" class="button-primary button-small" style="display: none;">Save Changes</button>
-  <button id="cancel-edit-btn" class="button-secondary button-small" style="display: none;">Cancel</button>
-`;
+  // Generate edit buttons
+  const actionsContainer = document.getElementById('modal-header-actions');
+  actionsContainer.innerHTML = `
+    <button id="edit-details-btn" class="button-secondary button-small">Edit Details</button>
+    <button id="save-details-btn" class="button-primary button-small" style="display: none;">Save Changes</button>
+    <button id="cancel-edit-btn" class="button-secondary button-small" style="display: none;">Cancel</button>
+  `;
 
   // Build screenshots section
   let screenshotsHtml = '';
@@ -419,12 +410,6 @@ actionsContainer.innerHTML = `
         </select>
       </div>
     </div>
-    ${issue.voters && issue.voters.length > 0 ? `
-  <div class="voters-section">
-    <strong>Voted by:</strong> 
-    <span class="voters-list">${issue.voters.join(', ')}</span>
-  </div>
-` : ''}
     <h4>Description</h4>
     <p class="details-description">${issue.description || 'No description provided.'}</p>
     
@@ -813,69 +798,43 @@ async function saveDetailsChanges() {
  * Toggles a user's vote on an issue/request
  */
 async function handleVoteToggle(issueId) {
-  if (!firebaseUser || !loggedInPerson) {
+  if (!firebaseUser) {
     alert('You must be logged in to vote.');
     return;
   }
   
   const userId = firebaseUser.uid;
-  const userName = loggedInPerson.name;
   const docRef = doc(db, 'issues', issueId);
   
   try {
+    // Get current issue data
     const issueSnap = await getDoc(docRef);
     if (!issueSnap.exists()) return;
     
     const issueData = issueSnap.data();
-    const voterUids = issueData.voterUids || [];
-    const voterNames = issueData.voters || [];
-    const hasVoted = voterUids.includes(userId);
+    const voters = issueData.voters || [];
+    const hasVoted = voters.includes(userId);
     
-    // --- Optimistic UI Update ---
-    // Find the card and modal buttons for this issue
-    const cardVoteBtn = document.querySelector(`.vote-btn[data-id="${issueId}"]`);
-    const modalVoteBtn = document.getElementById('modal-vote-btn');
-
     if (hasVoted) {
-      // --- Logic to REMOVE vote ---
-      if (cardVoteBtn) {
-        cardVoteBtn.classList.remove('voted');
-        cardVoteBtn.querySelector('span').textContent = (issueData.voteCount || 1) - 1;
-      }
-      if (modalVoteBtn && modalVoteBtn.dataset.id === issueId) {
-        modalVoteBtn.classList.remove('voted');
-        modalVoteBtn.querySelector('span').textContent = (issueData.voteCount || 1) - 1;
-      }
-      // Update Firestore
+      // Remove vote
       await updateDoc(docRef, {
         voteCount: increment(-1),
-        voterUids: voterUids.filter(id => id !== userId),
-        voters: voterNames.filter(name => name !== userName)
+        voters: voters.filter(id => id !== userId)
       });
     } else {
-      // --- Logic to ADD vote ---
-      if (cardVoteBtn) {
-        cardVoteBtn.classList.add('voted');
-        cardVoteBtn.querySelector('span').textContent = (issueData.voteCount || 0) + 1;
-      }
-      if (modalVoteBtn && modalVoteBtn.dataset.id === issueId) {
-        modalVoteBtn.classList.add('voted');
-        modalVoteBtn.querySelector('span').textContent = (issueData.voteCount || 0) + 1;
-      }
-      // Update Firestore
+      // Add vote
       await updateDoc(docRef, {
         voteCount: increment(1),
-        voterUids: [...voterUids, userId],
-        voters: [...voterNames, userName]
+        voters: [...voters, userId]
       });
     }
+    
+    console.log(`Vote ${hasVoted ? 'removed' : 'added'} successfully`);
   } catch (error) {
     console.error('Error toggling vote:', error);
     alert('Failed to update vote. Please try again.');
-    // Note: In a real app, you would add logic here to revert the optimistic UI change on failure.
   }
 }
-
 
 /**
  * Generates the HTML string for a single issue card.
@@ -954,9 +913,9 @@ if (issue.isPinned) {
             <span class="card-timestamp">${timestamp}</span>
         </div>
 <div class="card-footer-actions">
-    <button class="vote-btn ${issue.voterUids && issue.voterUids.includes(firebaseUser?.uid) ? 'voted' : ''}" 
+    <button class="vote-btn ${issue.voters && issue.voters.includes(firebaseUser?.uid) ? 'voted' : ''}" 
             data-id="${issueId}" 
-            title="${issue.voterUids && issue.voterUids.includes(firebaseUser?.uid) ? 'Remove vote' : 'Vote for this'}">
+            title="${issue.voters && issue.voters.includes(firebaseUser?.uid) ? 'Remove vote' : 'Vote for this'}">
       ${voteIconSVG}
       <span>${issue.voteCount || 0}</span>
     </button>
@@ -1293,16 +1252,6 @@ if (e.target.classList.contains('comment-screenshot-img')) {
   return;
 }
   
-// NEW: Handle modal vote button click
-if (e.target.closest('#modal-vote-btn')) {
-  const voteBtn = document.getElementById('modal-vote-btn');
-  const issueId = voteBtn.dataset.id;
-  if (issueId) {
-    handleVoteToggle(issueId);
-  }
-  return;
-}
-
   // NEW: Handle edit button click
   if (e.target.id === 'edit-details-btn') {
     toggleEditMode(true);

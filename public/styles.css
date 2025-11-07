@@ -261,53 +261,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helve
   height: 14px;
 }
 
-/* Vote Button in Modal Header */
-.vote-btn-modal {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  border: 2px solid var(--border-color);
-  background: white;
-  color: var(--subtle-text);
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  margin-right: 0.5rem;
-}
-
-.vote-btn-modal:hover {
-  border-color: var(--primary-color);
-  background-color: rgba(74, 144, 226, 0.05);
-  color: var(--primary-color);
-  transform: translateY(-1px);
-}
-
-.vote-btn-modal.voted {
-  border-color: var(--primary-color);
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.vote-btn-modal.voted:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-1px);
-}
-
-.vote-btn-modal svg {
-  width: 16px;
-  height: 16px;
-}
-
-.vote-count-modal {
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-}
-
 
 /* Card Actions Menu */
 .card-actions-menu { position: relative; }
@@ -396,25 +349,6 @@ textarea { resize: vertical; min-height: 100px; }
     #image-viewer-content {
       padding: 1rem;
     }
-
-/* Voters Display */
-.voters-section {
-  padding: 0.75rem 1rem;
-  background-color: #f0f7ff;
-  border-left: 3px solid var(--primary-color);
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-}
-
-.voters-section strong {
-  color: var(--primary-color);
-  margin-right: 0.5rem;
-}
-
-.voters-list {
-  color: var(--text-color);
-}
 
 /* Comments Section Styling */
 .comments-section { margin-top: 2rem; }
